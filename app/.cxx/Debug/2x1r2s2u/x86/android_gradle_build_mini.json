@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "/home/Lucas/Neso/app/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/home/Lucas/Android/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/home/Lucas/Android/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "neso::@6890427a1f51a3e7e1df": {
+      "artifactName": "neso",
+      "abi": "x86",
+      "output": "/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/x86/libneso.so",
+      "runtimeFiles": []
+    }
+  }
+}

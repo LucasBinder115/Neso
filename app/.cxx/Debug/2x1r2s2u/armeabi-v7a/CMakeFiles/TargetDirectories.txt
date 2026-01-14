@@ -1,0 +1,3 @@
+/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/armeabi-v7a/CMakeFiles/neso.dir
+/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/armeabi-v7a/CMakeFiles/edit_cache.dir
+/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/armeabi-v7a/CMakeFiles/rebuild_cache.dir

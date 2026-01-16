@@ -12,10 +12,16 @@ struct Sprite {
 
 struct PPU {
     uint8_t paletteTable[32];
-    Sprite sprites[64];
+    Sprite sprites[64];  // Primary OAM
+    uint32_t* pixelBuffer = nullptr; // For cycle-accurate rendering
     
-    uint16_t scrollX = 0;
-    uint16_t scrollY = 0;
+    // Secondary OAM (8 sprites for current scanline)
+    uint8_t secondaryOAM[32];  // 8 sprites × 4 bytes
+    uint8_t spriteCount = 0;   // 0-8
+    bool sprite0InSecondary = false;
+    bool spriteOverflow = false;
+    
+    // Loopy registers (v, t, x, w) are below in "Internal Registers"
 
     class Mapper* mapper = nullptr;
 
@@ -43,6 +49,32 @@ struct PPU {
     uint8_t readStatus();
     uint8_t vramRead(uint16_t addr);
     void vramWrite(uint16_t addr, uint8_t val);
+    void checkSprite0Hit(int x, int y, bool bgOpaque, bool spriteOpaque);
+    
+    // Loopy register helpers
+    void incrementX();
+    void incrementY();
+    void copyX();
+    void copyY();
+    
+    // Shift Registers (Background)
+    uint16_t bgShiftPatternLo = 0;
+    uint16_t bgShiftPatternHi = 0;
+    uint8_t bgShiftAttrLo = 0;
+    uint8_t bgShiftAttrHi = 0;
+
+    // Latches for next tile data
+    uint8_t bgNextTileId = 0;
+    uint8_t bgNextTileAttr = 0;
+    uint8_t bgNextTileLo = 0;
+    uint8_t bgNextTileHi = 0;
+    
+    // Fetch Helpers
+    void loadBackgroundShifters();
+    void updateShifters();
+    
+    // Pixel Rendering
+    void renderPixel();
 };
 
 #endif

@@ -48,14 +48,29 @@ void CPU::write(uint16_t addr, uint8_t val) {
         if (reg == 0x2004) {
             ((uint8_t*)ppu->sprites)[ppu->oamAddr++] = val;
         }
+        // $2005 - PPUSCROLL (Loopy registers)
         if (reg == 0x2005) {
-            if (!ppu->writeToggle) ppu->scrollX = val;
-            else ppu->scrollY = val;
+            if (!ppu->writeToggle) {
+                // First write: Coarse X and Fine X
+                ppu->tempAddr = (ppu->tempAddr & 0xFFE0) | (val >> 3);
+                ppu->fineX = val & 0x07;
+            } else {
+                // Second write: Coarse Y and Fine Y
+                ppu->tempAddr = (ppu->tempAddr & 0x8FFF) | ((val & 0x07) << 12);
+                ppu->tempAddr = (ppu->tempAddr & 0xFC1F) | ((val & 0xF8) << 2);
+            }
             ppu->writeToggle = !ppu->writeToggle;
         }
+        // $2006 - PPUADDR (Loopy registers)
         if (reg == 0x2006) {
-            if (!ppu->writeToggle) ppu->vramAddr = (ppu->vramAddr & 0x00FF) | ((uint16_t)(val & 0x3F) << 8);
-            else ppu->vramAddr = (ppu->vramAddr & 0xFF00) | val;
+            if (!ppu->writeToggle) {
+                // First write: High 6 bits of t
+                ppu->tempAddr = (ppu->tempAddr & 0x00FF) | ((val & 0x3F) << 8);
+            } else {
+                // Second write: Low 8 bits of t, then copy t to v
+                ppu->tempAddr = (ppu->tempAddr & 0xFF00) | val;
+                ppu->vramAddr = ppu->tempAddr;
+            }
             ppu->writeToggle = !ppu->writeToggle;
         }
         if (reg == 0x2007) {
@@ -63,10 +78,13 @@ void CPU::write(uint16_t addr, uint8_t val) {
             ppu->vramAddr += (ppu->ppuctrl & 0x04) ? 32 : 1;
         }
     } else if (addr == 0x4014) {
+        // OAM DMA: Copy 256 bytes to OAM
         uint16_t base = (uint16_t)val << 8;
         for (int i = 0; i < 256; i++) {
             ((uint8_t*)ppu->sprites)[i] = read(base + i);
         }
+        // DMA takes 513 cycles (+1 if on odd cycle)
+        // For simplicity, always use 513 (close enough)
         cyclesToStall = 513;
     } else if (addr == 0x4016) {
         if (val & 1) controller.latch();

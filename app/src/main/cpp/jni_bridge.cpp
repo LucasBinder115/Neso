@@ -26,6 +26,7 @@ Java_com_neso_core_MainActivity_createCpu(JNIEnv* env, jobject thiz) {
     cpuGlobal->apu = &apuGlobal;
     cpuGlobal->reset();
     ppuGlobal.reset();
+    ppuGlobal.pixelBuffer = screenBuffer;
     apuGlobal.reset();
     return (jlong)cpuGlobal;
 }
@@ -93,7 +94,8 @@ Java_com_neso_core_MainActivity_stepCpu(JNIEnv* env, jobject thiz, jlong ptr) {
 
 JNIEXPORT void JNICALL
 Java_com_neso_core_MainActivity_renderFrame(JNIEnv* env, jobject thiz, jintArray output) {
-    renderScreen(screenBuffer, ppuGlobal);
+    // OLD: renderScreen(screenBuffer, ppuGlobal);
+    // NEW: Cycle-accurate pixels are generated in PPU::step
     env->SetIntArrayRegion(output, 0, SCREEN_WIDTH * SCREEN_HEIGHT, (const jint*)screenBuffer);
 }
 

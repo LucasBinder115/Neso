@@ -363,7 +363,8 @@ void CPU::triggerNMI() {
     LOGD("NMI! PC: 0x%04X", pc);
     push(pc >> 8);
     push(pc & 0xFF);
-    push(status);
+    // Push status with Bit 5 (Unused) set and Bit 4 (B-Flag) clear
+    push((status | 0x20) & ~0x10);
     pc = read16(0xFFFA);
     status |= 0x04;
     cyclesToStall = 7;

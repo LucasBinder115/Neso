@@ -82,3 +82,8 @@
 14	11539	1768531138384356669	CMakeFiles/neso.dir/cpu.cpp.o	4154903f579ea075
 16	11647	1768531138496361233	CMakeFiles/neso.dir/ppu.cpp.o	4e7509e5bd9ed832
 11649	12115	1768531138976380793	/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/x86_64/libneso.so	bf656bda3c518f16
+25	9514	1768531870334182688	CMakeFiles/neso.dir/ppu.cpp.o	4e7509e5bd9ed832
+26	9537	1768531870378184481	CMakeFiles/neso.dir/renderer.cpp.o	63ec41496d526722
+27	9811	1768531870614194098	CMakeFiles/neso.dir/jni_bridge.cpp.o	9a3362db8938aef3
+24	10246	1768531871102213985	CMakeFiles/neso.dir/cpu.cpp.o	4154903f579ea075
+10247	10905	1768531871742240065	/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/x86_64/libneso.so	bf656bda3c518f16

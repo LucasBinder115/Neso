@@ -14,10 +14,7 @@ void PPU::reset() {
     spriteCount = 0;
     sprite0InSecondary = false;
     spriteOverflow = false;
-    
-    spriteCount = 0;
-    sprite0InSecondary = false;
-    spriteOverflow = false;
+    oddFrame = false;
     
     bgShiftPatternLo = 0;
     bgShiftPatternHi = 0;
@@ -43,7 +40,22 @@ void PPU::reset() {
 
 uint8_t PPU::readStatus() {
     uint8_t res = ppustatus;
-    ppustatus &= ~0x80; 
+    
+    // Race Condition: Reading $2002 at the exact start of VBlank (Scanline 241, Cycle 1)
+    // If we are at SL 241, Cycle 1, the VBlank flag should NOT be returned as set,
+    // and NMI should be suppressed.
+    if (scanline == 241 && cycle == 1) {
+        res &= ~0x80; // Clear VBlank in result
+        // Suppress NMI (handled in step via nmiOccurred check adjustment or handled here but nmiOccurred is set in step)
+        // Ideally, if step() runs after this, it sees we read it. 
+        // But step() runs 3 cycles. This is tricky. 
+        // Simplification: We assume CPU reads happen "between" PPU steps or aligned.
+        // If we read just now, we clear the flag effectively suppressing it if it was just set.
+        ppustatus &= ~0x80; 
+        nmiOccurred = false; // Cancel NMI if it was about to happen
+    }
+    
+    ppustatus &= ~0x80; // Clear VBlank flag on read
     writeToggle = false; 
     return res;
 }
@@ -51,12 +63,22 @@ uint8_t PPU::readStatus() {
 void PPU::step(int cpuCycles, CPU* cpu) {
     int ppuCycles = cpuCycles * 3;
     for (int i = 0; i < ppuCycles; i++) {
+        // Odd Frame Skip (Scanline 261, Cycle 339 -> 0 if odd & rendering enabled)
+        if (scanline == 261 && cycle == 339 && oddFrame && (ppumask & 0x18)) {
+            cycle = 0;
+            scanline = 0;
+            oddFrame = !oddFrame;
+            ppustatus &= ~0xE0;
+            continue; // Skip increment
+        }
+
         cycle++;
         if (cycle >= 341) {
             cycle = 0;
             scanline++;
             if (scanline >= 262) {
                 scanline = 0;
+                oddFrame = !oddFrame; // Toggle odd/even frame
                 ppustatus &= ~0xE0; // Clear VBlank, Sprite 0 Hit, Sprite Overflow
             }
         }
@@ -184,13 +206,16 @@ void PPU::step(int cpuCycles, CPU* cpu) {
             }
         }
 
-        // VBlank
+        // VBlank Start (Scanline 241, Cycle 1)
         if (scanline == 241 && cycle == 1) {
             ppustatus |= 0x80;
-            if (ppuctrl & 0x80) nmiOccurred = true;
+            // NMI Trigger
+            if (ppuctrl & 0x80) {
+                 nmiOccurred = true; 
+            }
         }
         
-        // Pre-render scanline: Clear flags
+        // Pre-render scanline: Clear flags (Scanline 261, Cycle 1)
         if (scanline == 261 && cycle == 1) {
             ppustatus &= ~0xE0; // Clear VBlank, Sprite 0 Hit, Sprite Overflow
             sprite0InSecondary = false;

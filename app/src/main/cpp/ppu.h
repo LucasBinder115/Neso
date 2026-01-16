@@ -33,7 +33,8 @@ struct PPU {
     // Timing
     int scanline = 0;
     int cycle = 0;
-    uint8_t oamAddr = 0; // NEW
+    bool oddFrame = false; // For skipped cycle on pre-render
+    uint8_t oamAddr = 0; 
     bool nmiOccurred = false;
     bool nmiPrevious = false; // For edge detection
 

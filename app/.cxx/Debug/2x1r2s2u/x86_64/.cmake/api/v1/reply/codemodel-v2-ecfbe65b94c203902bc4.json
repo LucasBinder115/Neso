@@ -39,7 +39,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "neso::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-neso-Debug-a0449593bad11f4aec99.json",
+					"jsonFile" : "target-neso-Debug-851423ed029e51c02b55.json",
 					"name" : "neso",
 					"projectIndex" : 0
 				}
@@ -49,7 +49,7 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/armeabi-v7a",
+		"build" : "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/x86_64",
 		"source" : "/home/Lucas/Neso/app/src/main/cpp"
 	},
 	"version" : 

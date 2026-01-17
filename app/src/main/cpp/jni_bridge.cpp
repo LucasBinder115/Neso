@@ -53,6 +53,17 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
         ppuGlobal.mapper = currentMapper;
         LOGD("Mapper %d initialized, resetting CPU...", mapperId);
         cpuGlobal->reset();
+        
+        // --- Vector Verification ---
+        uint8_t lo = cpuGlobal->read(0xFFFC);
+        uint8_t hi = cpuGlobal->read(0xFFFD);
+        uint16_t resetVec = lo | (hi << 8);
+        
+        lo = cpuGlobal->read(0xFFFA);
+        hi = cpuGlobal->read(0xFFFB);
+        uint16_t nmiVec = lo | (hi << 8);
+        
+        LOGD("PRG-ROM Loaded. Reset Vector: 0x%04X, NMI Vector: 0x%04X", resetVec, nmiVec);
     } else {
         LOGD("ROM Validation FAILED!");
     }
@@ -60,37 +71,53 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
     env->ReleaseByteArrayElements(data, buf, 0);
 }
 
-JNIEXPORT void JNICALL
-Java_com_neso_core_MainActivity_stepCpu(JNIEnv* env, jobject thiz, jlong ptr) {
-    if (!cpuGlobal || !cpuGlobal->mapper) return;
+    JNIEXPORT void JNICALL
+    Java_com_neso_core_MainActivity_stepCpu(JNIEnv* env, jobject thiz, jlong ptr) {
+        if (!cpuGlobal || !cpuGlobal->mapper) return;
+        
+        // --- Heartbeat Telemetry (Once per frame) ---
+        // Log CPU state at the start of the frame execution block
+        // This gives us a 60Hz sample of where the CPU is "hanging out".
+        // Using static counter to log every 60 frames (1 sec) to be even lighter? 
+        // User asked for "Heartbeat", 60Hz is fine for debugging "stuck" state.
+        
+        static int frameCounter = 0;
+        frameCounter++;
+        
+        // Log every frame for now to catch the crash/hang immediately, 
+        // or every 60 frames if we want to monitor long term.
+        // Let's do every 60 frames (1 second) to be super safe against lag, 
+        // BUT also if PC is suspicious (e.g. 0x0000 or same as last time).
+        
+        if (frameCounter % 60 == 0) {
+            LOGD("💓 Heartbeat #%d: PC=%04X SP=%02X Scan=%d Cyc=%d VRAM=%04X Pal[0]=%02X Spr0Hit=%d Spr0Y=%d", 
+                 frameCounter, cpuGlobal->pc, cpuGlobal->sp, ppuGlobal.scanline, ppuGlobal.cycle,
+                 ppuGlobal.vramAddr, ppuGlobal.paletteTable[0], (ppuGlobal.ppustatus & 0x40) != 0, ppuGlobal.sprites[0].y);
+        }
+
+        static uint16_t lastPC = 0;
+        static int stagnantFrames = 0;
     
-    static uint16_t lastPC = 0;
-    static int stagnantFrames = 0;
-
-    int cyclesThisFrame = 0;
-    while (cyclesThisFrame < 30000) { // Slightly more to ensure we cross frame boundaries
-        int cycles = cpuGlobal->step();
-        ppuGlobal.step(cycles, cpuGlobal);
-        if (ppuGlobal.nmiOccurred) {
-            cpuGlobal->triggerNMI();
-            ppuGlobal.nmiOccurred = false;
+        int cyclesThisFrame = 0;
+        while (cyclesThisFrame < 29780) { // Authentic NTSC (approx)
+            int cycles = cpuGlobal->step();
+            ppuGlobal.step(cycles, cpuGlobal);
+            if (ppuGlobal.nmiOccurred) {
+                // LOGD("NMI Triggered at Frame %d", frameCounter); // Optional: Uncomment if NMI is suspect
+                cpuGlobal->triggerNMI();
+                ppuGlobal.nmiOccurred = false;
+            }
+            cyclesThisFrame += cycles;
         }
-        cyclesThisFrame += cycles;
-    }
-
-    if (cpuGlobal->pc == lastPC) {
-        stagnantFrames++;
-        if (stagnantFrames % 60 == 0) {
-            __android_log_print(ANDROID_LOG_DEBUG, "NesoCPU", "PC STUCK at 0x%04X for %d frames", cpuGlobal->pc, stagnantFrames);
+    
+        /* 
+        // Stuck detection removed for performance, relying on Heartbeat now.
+        if (cpuGlobal->pc == lastPC) {
+             // ...
         }
-    } else {
-        if (stagnantFrames > 0) {
-            __android_log_print(ANDROID_LOG_DEBUG, "NesoCPU", "PC MOVED! 0x%04X -> 0x%04X (after %d stagnant frames)", lastPC, cpuGlobal->pc, stagnantFrames);
-        }
-        stagnantFrames = 0;
+        */
         lastPC = cpuGlobal->pc;
     }
-}
 
 JNIEXPORT void JNICALL
 Java_com_neso_core_MainActivity_renderFrame(JNIEnv* env, jobject thiz, jintArray output) {

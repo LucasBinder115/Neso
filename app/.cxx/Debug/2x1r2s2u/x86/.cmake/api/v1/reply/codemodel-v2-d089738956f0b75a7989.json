@@ -39,7 +39,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "neso::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-neso-Debug-3a5693efa8cb20fdb5a7.json",
+					"jsonFile" : "target-neso-Debug-a55d2b93d12f5300f6c9.json",
 					"name" : "neso",
 					"projectIndex" : 0
 				}
@@ -49,7 +49,7 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/arm64-v8a",
+		"build" : "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/x86",
 		"source" : "/home/Lucas/Neso/app/src/main/cpp"
 	},
 	"version" : 

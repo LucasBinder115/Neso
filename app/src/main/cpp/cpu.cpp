@@ -49,7 +49,8 @@ void CPU::write(uint16_t addr, uint8_t val) {
             ((uint8_t*)ppu->sprites)[ppu->oamAddr++] = val;
         }
         // $2005 - PPUSCROLL (Loopy registers)
-        if (reg == 0x2005) {
+        if (reg == 0x2005) { // PPUSCROLL
+            LOGD("PPUSCROLL Write: 0x%02X (Toggle=%d)", val, ppu->writeToggle);
             if (!ppu->writeToggle) {
                 // First write: Coarse X and Fine X
                 ppu->tempAddr = (ppu->tempAddr & 0xFFE0) | (val >> 3);
@@ -62,7 +63,8 @@ void CPU::write(uint16_t addr, uint8_t val) {
             ppu->writeToggle = !ppu->writeToggle;
         }
         // $2006 - PPUADDR (Loopy registers)
-        if (reg == 0x2006) {
+        if (reg == 0x2006) { // PPUADDR
+            LOGD("PPUADDR Write: 0x%02X (Toggle=%d)", val, ppu->writeToggle);
             if (!ppu->writeToggle) {
                 // First write: High 6 bits of t
                 ppu->tempAddr = (ppu->tempAddr & 0x00FF) | ((val & 0x3F) << 8);
@@ -350,7 +352,7 @@ int CPU::step() {
         case 0x5F: { uint16_t adr=addr_absy(); uint8_t v=read(adr); uint8_t c=v&1; v>>=1; write(adr,v); a^=v; setZN(a); status=(status&~0x01)|c; cycles=7; break; } // SRE Abs,Y
 
         default:
-            LOGD("Unknown Opcode 0x%02X at PC: 0x%04X - Skipping as NOP", opcode, curPC);
+            // LOGD("Unknown Opcode 0x%02X at PC: 0x%04X - Skipping as NOP", opcode, curPC);
             pc++; 
             cycles = 2;
             break;
@@ -360,7 +362,7 @@ int CPU::step() {
 }
 
 void CPU::triggerNMI() {
-    LOGD("NMI! PC: 0x%04X", pc);
+    // LOGD("NMI! PC: 0x%04X", pc);
     push(pc >> 8);
     push(pc & 0xFF);
     // Push status with Bit 5 (Unused) set and Bit 4 (B-Flag) clear

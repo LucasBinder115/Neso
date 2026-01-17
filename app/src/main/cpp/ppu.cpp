@@ -1,5 +1,6 @@
 #include "ppu.h"
 #include <cstring>
+#include <android/log.h>
 #include "cpu.h"
 #include "mapper.h"
 #include "palette.h"
@@ -157,51 +158,40 @@ void PPU::step(int cpuCycles, CPU* cpu) {
                 }
             }
             
-            // Cycle 65: Initialize sprite evaluation
+            
+            // Cycle 65: Initialize & Instant Eval consolidated below
+            
+            // Cycles 65-256: Sprite Evaluation (REPLACED by Instant Eval below)
+            // if (cycle >= 65 && cycle <= 256) { ... } logic removed.
+            
+            // Cycle 65: Instant Sprite Evaluation (Cheat for stability)
             if (cycle == 65) {
                 spriteCount = 0;
                 sprite0InSecondary = false;
                 spriteOverflow = false;
-            }
-            
-            // Cycles 65-256: Sprite Evaluation
-            if (cycle >= 65 && cycle <= 256) {
-                int oamIdx = (cycle - 65) / 8; // 0-23 (24 sprites checked per scanline)
-                int subCycle = (cycle - 65) % 8;
                 
-                if (oamIdx < 64 && spriteCount < 8 && subCycle == 0) {
-                    uint8_t spriteY = sprites[oamIdx].y;
-                    int spriteHeight = (ppuctrl & 0x20) ? 16 : 8;
-                    int nextScanline = (scanline == 261) ? 0 : scanline + 1;
-                    
-                    // Check if sprite is on next scanline
-                    int diff = nextScanline - spriteY;
-                    if (diff >= 0 && diff < spriteHeight) {
-                        // Copy to secondary OAM
-                        // Note: should check priority/overflow here too but logic is simplified
-                        int secIdx = spriteCount * 4;
-                        secondaryOAM[secIdx + 0] = sprites[oamIdx].y;
-                        secondaryOAM[secIdx + 1] = sprites[oamIdx].tile_index;
-                        secondaryOAM[secIdx + 2] = sprites[oamIdx].attributes;
-                        secondaryOAM[secIdx + 3] = sprites[oamIdx].x;
-                        
-                        if (oamIdx == 0) {
-                            sprite0InSecondary = true;
-                        }
-                        
-                        spriteCount++;
-                    }
-                } else if (oamIdx < 64 && spriteCount >= 8 && subCycle == 0) {
-                    // Check for 9th sprite (overflow)
-                    uint8_t spriteY = sprites[oamIdx].y;
-                    int spriteHeight = (ppuctrl & 0x20) ? 16 : 8;
-                    int nextScanline = (scanline == 261) ? 0 : scanline + 1;
-                    int diff = nextScanline - spriteY;
-                    
-                    if (diff >= 0 && diff < spriteHeight) {
-                        spriteOverflow = true;
-                        ppustatus |= 0x20; // Set sprite overflow flag
-                    }
+                int spriteHeight = (ppuctrl & 0x20) ? 16 : 8;
+                int nextScanline = (scanline == 261) ? 0 : scanline + 1;
+
+                for (int i = 0; i < 64; i++) {
+                     uint8_t spriteY = sprites[i].y;
+                     int diff = nextScanline - spriteY;
+                     
+                     if (diff >= 0 && diff < spriteHeight) {
+                         if (spriteCount < 8) {
+                             int secIdx = spriteCount * 4;
+                             secondaryOAM[secIdx + 0] = sprites[i].y;
+                             secondaryOAM[secIdx + 1] = sprites[i].tile_index;
+                             secondaryOAM[secIdx + 2] = sprites[i].attributes;
+                             secondaryOAM[secIdx + 3] = sprites[i].x;
+                             if (i == 0) sprite0InSecondary = true;
+                             spriteCount++;
+                         } else {
+                             spriteOverflow = true;
+                             ppustatus |= 0x20;
+                             // Hardware buggy behavior for overflow omitted for now
+                         }
+                     }
                 }
             }
         }
@@ -242,6 +232,10 @@ void PPU::vramWrite(uint16_t addr, uint8_t val) {
         uint16_t paletteAddr = addr & 0x001F;
         if (paletteAddr >= 0x10 && (paletteAddr & 0x03) == 0) paletteAddr -= 0x10;
         paletteTable[paletteAddr] = val;
+        // DEBUG: Log Palette Writes
+        if (addr >= 0x3F00 && addr <= 0x3F1F) {
+            __android_log_print(ANDROID_LOG_DEBUG, "NesoPPU", "Palette Write: Addr=0x%04X (Idx=%d) Val=0x%02X", addr, paletteAddr, val);
+        }
     }
 }
 
@@ -304,6 +298,7 @@ void PPU::loadBackgroundShifters() {
     // Actually, getting the right bit for the quadrant.
     // For now simplistic approach:
     uint8_t attr = bgNextTileAttr; 
+    
     bgShiftAttrLo = (bgShiftAttrLo & 0xFF00) | ((attr & 1) ? 0xFF : 0);
     bgShiftAttrHi = (bgShiftAttrHi & 0xFF00) | ((attr & 2) ? 0xFF : 0);
 }
@@ -433,6 +428,8 @@ void PPU::renderPixel() {
     // 5. Output
     uint16_t paletteIndex = paletteTable[finalPalette * 4 + finalPixel];
     if (finalPixel == 0) paletteIndex = paletteTable[0]; // Global background color
+    
+    // Apply Grayscale
     
     // Apply Grayscale
     if (ppumask & 0x01) paletteIndex &= 0x30;

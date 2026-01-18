@@ -1,297 +1,177 @@
-Se a tela está verde e travada, você acaba de atingir o "ponto de ruptura" clássico do desenvolvimento de um emulador de NES. Isso acontece porque a CPU e a PPU pararam de se comunicar ou a PPU se perdeu no labirinto da memória VRAM.
+🧠 Diagnóstico honesto do estado atual
 
-Para resolver isso, não podemos pular etapas. Vamos focar agora no que é vital para "destravar" a imagem. As fases que vamos lidar "devagar", parte por parte, são a 13 e a 14. Elas são as duas faces da mesma moeda.
+Pelo que você descreveu, tecnicamente você está em:
 
-Aqui está a prioridade técnica para você sair desse estado:
-1ª Prioridade: Fase 14 — O Ritmo (Para "destravar")
+✅ Fase 13 — IMPLEMENTADA (base sólida)
 
-Se o jogo travou, é 99% de chance de ser um problema de NMI ou Timing.
+Pipeline existe
 
-    O Problema: A maioria dos jogos de NES (incluindo Mario) fica em um loop infinito esperando o bit de VBlank no registrador $2002 ficar "1". Se a sua PPU não chegar na scanline 241 e disparar a interrupção NMI, a CPU nunca sai desse loop. A tela fica "congelada" na cor de fundo (que pode ser esse verde).
+Loopy registers funcionam
 
-    O que fazer agora: 1. Verifique se o seu loop principal está rodando 3 ciclos de PPU para cada 1 ciclo de CPU. 2. Garanta que, no ciclo 1 da scanline 241, o bit 7 do $2002 suba para 1. 3. Garanta que, se o bit 7 do $2000 estiver ativo, a CPU interrompa o que está fazendo e vá para o endereço do vetor NMI.
+Attribute shifters 16-bit corretos
 
-2ª Prioridade: Fase 13 — O Pipeline (Para tirar o "Verde")
+Sprite 0 hit real
 
-Se a tela está verde, a PPU está tentando desenhar, mas ela está lendo o endereço errado na memória ou os registradores de Scroll estão zerados/corrompidos.
+Scroll funcional
 
-    O Problema: Sem os Registradores de Loopy (v,t,x,w), a PPU não sabe qual Tile ler. Ela acaba lendo sempre o mesmo byte (geralmente 0x00), que aponta para um tile vazio e uma cor da paleta que calha de ser verde.
+⚠️ Ainda não perfeita, mas funcional o suficiente para jogos reais.
 
-    O que fazer devagar (Parte por Parte):
+✅ Fase 14 — IMPLEMENTADA (funcional, não refinada)
 
-Parte A: Implementar o "Quarteto Fantástico" (Loopy Registers)
+NMI dispara corretamente
 
-Esqueça variáveis simples como scrollX. Você precisa implementar:
+CPU não trava mais
 
-    v (VRAM Address): Onde a PPU está olhando agora.
+APU em fase (timbre e pitch corretos)
 
-    t (Temporary Address): Para onde a PPU vai olhar na próxima linha.
+Timing geral coerente
 
-    x (Fine X): O ajuste fino de pixels.
+⚠️ Performance e micro-jitter ainda presentes (esperado).
 
-    w (Write Toggle): Para saber se é o primeiro ou segundo clique em $2005/$2006.
+🟡 Fase 15 — PARCIALMENTE IMPLEMENTADA
 
-Parte B: O Ciclo de Fetch (O Coração da Fase 13)
+Aqui vem um ponto importante:
 
-Em vez de desenhar a linha toda num for de 0 a 255, você vai dividir a scanline em blocos de 8 ciclos.
+A colisão já funciona porque a base está certa.
+Isso é sinal de sucesso das fases 13 e 14.
 
-    Ciclos 1-2: Pega o byte da Name Table (Qual é o desenho?).
+Mas ainda faltam:
 
-    Ciclos 3-4: Pega o byte da Attribute Table (Qual é a cor?).
+leituras tardias
 
-    Ciclos 5-6: Pega o Pattern Low (Forma parte 1).
+edge cases
 
-    Ciclos 7-8: Pega o Pattern High (Forma parte 2).
+jogos que abusam de Sprite 0 hit
 
-    No ciclo 8: Joga tudo isso em Shift Registers para "cuspir" os pixels.
+📌 Então o que muda no TODO.md?
+❌ O que NÃO faz mais sentido manter
 
-Por que vamos "Devagar" nessas duas?
+No todo.md, remova o tom de “destravamento” das fases 13 e 14.
 
-Se você tentar fazer a Fase 15 (Colisão) sem a Fase 13 (Pipeline) estar perfeita, o Mario vai atravessar o chão porque a CPU "acha" que ele está num lugar, mas a PPU está desenhando o chão em outro (por erro de scroll).
+Essas frases agora estão obsoletas:
 
-Resumo do Plano de Ataque:
+“para sair da tela verde”
 
-    Destravar a CPU (Fase 14): Verifique seu sistema de NMI. A CPU precisa receber o sinal de VBlank para processar a lógica do jogo.
+“para destravar”
 
-    Organizar a VRAM (Fase 13): Implemente a lógica de Loopy para as escritas em $2006. Se a escrita em $2006 não atualizar o registrador $v corretamente, a PPU nunca vai achar os tiles do Mario.
+“ponto de ruptura”
 
-    Visualizar o Progresso: Se a tela mudar de "Verde Sólido" para "Lixo Colorido que se mexe", comemore. Significa que a CPU destravou e a PPU começou a ler dados. O "Lixo" a gente arruma alinhando o Pipeline.
+👉 Isso já foi vencido.
 
-Dica técnica para o "Verde": Dê um dump na sua memória de Paleta (RAM interna da PPU em 0x3F00). Se todos os valores lá forem iguais, ou se a PPU estiver lendo o endereço 0x0000 constantemente, você terá uma tela de uma cor só. O culpado é quase sempre o ponteiro de endereço da PPU que não está incrementando após as leituras/escritas.
+✅ Nova proposta de estrutura (recomendada)
+🟦 FASE 13 — Pipeline de Renderização (VALIDAÇÃO & AJUSTE FINO)
 
-Quer que eu detalhe como estruturar os registradores de Loopy (v,t,x,w) para corrigir esse endereço de memória agora?  
+Status: 🟢 Funcional
+Objetivo agora: Fidelidade, não sobrevivência
 
-🟦 FASE 13 — Pipeline de Renderização Determinístico
+Novo foco:
 
-Tema:
+Pequenos glitches de tile
 
-“Render não pode improvisar.”
+Scroll jitter
 
-Problemas atacados
+Attribute edge cases
 
-Pixels bugando
+Sprite overflow
 
-Tiles errados aparecendo
+Sprite priority
 
-Cenário quebrando ao andar
+Critério atualizado:
+✔ Mario jogável
+✔ Cenário correto
+✔ Glitches raros e localizados
 
-Causas reais
+🟦 FASE 14 — Sincronização (ESTABILIZAÇÃO)
 
-Leitura errada de Nametable
+Status: 🟢 Funcional
+Objetivo agora: Estabilidade e previsibilidade
 
-Attribute Table fora de alinhamento
+Novo foco:
 
-Scroll X/Y mal aplicado
+Remover lentidões artificiais
 
-Pattern table acessada fora de fase
+Corrigir frames “travadinhos”
 
-O que deve ser feito
+Garantir APU perfeitamente em fase
 
-Render por scanline, não por frame
+Medir ciclos, não FPS
 
-Separar claramente:
+Critério atualizado:
+✔ Jogo consistente
+✔ Áudio não “respira”
+✔ Input sem delay perceptível
 
-Fetch Name Table
+🟦 FASE 15 — Lógica de Jogo & Casos Limite
 
-Fetch Attribute
+Status: 🟡 Em andamento real
 
-Fetch Pattern Low/High
+Agora sim ela vira protagonista.
 
-Scroll aplicado pixel a pixel
+Novo foco:
 
-Latch correto de $2005/$2006
+Sprite 0 hit em jogos não-Mario
 
-Critério de sucesso
+Jogos com split-screen
 
-✔ Cenário sólido
-✔ Scroll suave
-✔ Nenhum tile “teleporta”
+Leituras maliciosas de $2002
 
-🟦 FASE 14 — Sincronização CPU ↔ PPU ↔ APU (O Ritmo)
+Jogos que dependem de timing “errado”
 
-Tema:
+🟦 FASE 16 — Performance (AGORA SIM)
 
-“Tudo anda junto ou tudo quebra.”
+Esse é o momento certo.
+Antes disso seria desperdício.
 
-Problemas atacados
+Aqui você:
 
-Jogo lento
+remove logs
 
-Música bugando junto com vídeo
+troca debug por release
 
-Travadas periódicas
+cacheia tiles
 
-Causas reais
+reduz JNI
 
-CPU executando instruções demais ou de menos
+mede frame time
 
-PPU fora da proporção 3:1
+🧭 Conclusão clara e sem rodeio
 
-APU gerando áudio fora de fase
+Lucas, escuta isso com atenção:
 
-O que deve ser feito
+Você não precisa mais “seguir as fases para destravar”.
+Você precisa usar as fases como checklist de qualidade.
 
-Estabelecer loop fixo:
+As fases continuam válidas como mapa mental,
+mas o projeto mudou de estado.
 
-CPU: 1 ciclo
+Antes:
 
-PPU: 3 ciclos
+“Será que funciona?”
 
-APU: avança por ciclos de CPU
+Agora:
 
-Nunca sincronizar por FPS
+“Funciona. Onde não está fiel?”
 
-NMI disparada exatamente no VBlank start
+Isso é outra liga.
 
-Critério de sucesso
+📍 Minha recomendação prática (ação imediata)
 
-✔ Jogo fluido
-✔ Música não acelera nem atrasa
-✔ Input consistente
+Atualize o todo.md hoje
 
-🟦 FASE 15 — Correção de Colisão & Lógica de Jogo
+Marque Fase 13 e 14 como Funcionais
 
-Tema:
+Mude o texto para “Refinamento”
 
-“Mario não atravessa chão.”
+Abra um novo bloco
 
-Problemas atacados
+“Glitches conhecidos”
 
-Mario bugando no cenário
+“Problemas de performance”
 
-Entrando em tiles
+“Diferenças vs FCEUX”
 
-Colisões erradas
+Pare de usar Mario como único juiz
 
-Causa real
+Próximo jogo: Contra ou Ice Climber
 
-Isso NÃO é bug do jogo.
-É bug de PPU + CPU timing.
-
-O que deve ser feito
-
-Garantir Sprite 0 Hit correto
-
-Garantir leitura consistente de $2002
-
-Garantir que o jogo “enxerga” o cenário certo
-
-Corrigir leituras atrasadas de memória
-
-Critério de sucesso
-
-✔ Mario pisa certo
-✔ Não atravessa chão
-✔ Física NES correta
-
-🟦 FASE 16 — Performance & Estabilidade de Execução
-
-Tema:
-
-“Rápido é previsível.”
-
-Problemas atacados
-
-Lags
-
-Quedas de FPS
-
-Engasgos
-
-O que deve ser feito
-
-Remover logs de hot path
-
-Cache de pattern tiles
-
-Evitar malloc/free em loop
-
-Evitar chamadas JNI por pixel ou sample
-
-Critério de sucesso
-
-✔ 60 FPS estáveis
-✔ Sem stutter
-✔ CPU fria
-
-🟦 FASE 17 — Compatibilidade Real de Jogos
-
-Tema:
-
-“Não é Mario-only.”
-
-Objetivo
-
-Rodar bem (não apenas rodar):
-
-Super Mario Bros
-
-Contra
-
-Castlevania
-
-Mega Man 2
-
-Donkey Kong
-
-Excitebike
-
-Ice Climber
-
-O que validar
-
-Mapper 0 sólido
-
-Timing consistente
-
-Sem hacks específicos
-
-Sem “if rom == mario”
-
-Critério de sucesso
-
-✔ Pelo menos 30–50 jogos jogáveis
-✔ Sem bugs visuais graves
-✔ Sem som quebrado
-
-🟨 FASE 18 — Save States (Depois da Casa Arrumada)
-
-(Só depois de tudo acima está sólido)
-
-Tema:
-
-“Congelar o tempo.”
-
-Snapshot completo:
-
-CPU
-
-PPU
-
-APU
-
-Mapper
-
-Serialize tudo
-
-Restore sem desync
-
-🧠 Filosofia que você está seguindo (e está certa)
-
-Você não correu para Save State.
-Você não correu para Mapper 1.
-Você não correu para UI bonita.
-
-Você fez o que os bons fazem:
-
-Primeiro estabilidade. Depois poder.
-
-Se quiser, no próximo passo eu posso:
-
-Detalhar Fase 12 (PPU) passo a passo
-
-Criar uma checklist técnica para o agente
-
-Ajudar a priorizar o bug mais destrutivo agora
-
-Comparar comportamento com FCEUX ponto a pontoss aqui te mostrar as vezes beleza para voce entender cada coisa antigravity 
+Se eles rodarem → seu emulador é real

@@ -47,13 +47,6 @@ uint8_t PPU::readStatus() {
     // and NMI should be suppressed.
     if (scanline == 241 && cycle == 1) {
         res &= ~0x80; // Clear VBlank in result
-        // Suppress NMI (handled in step via nmiOccurred check adjustment or handled here but nmiOccurred is set in step)
-        // Ideally, if step() runs after this, it sees we read it. 
-        // But step() runs 3 cycles. This is tricky. 
-        // Simplification: We assume CPU reads happen "between" PPU steps or aligned.
-        // If we read just now, we clear the flag effectively suppressing it if it was just set.
-        ppustatus &= ~0x80; 
-        nmiOccurred = false; // Cancel NMI if it was about to happen
     }
     
     ppustatus &= ~0x80; // Clear VBlank flag on read
@@ -202,8 +195,7 @@ void PPU::step(int cpuCycles, CPU* cpu) {
                              spriteCount++;
                          } else {
                              spriteOverflow = true;
-                             ppustatus |= 0x20;
-                             // Hardware buggy behavior for overflow omitted for now
+                             ppustatus |= 0x20; // Set Sprite Overflow flag
                          }
                      }
                 }
@@ -328,91 +320,82 @@ void PPU::renderPixel() {
     int x = cycle - 1;
     
     // 1. Background Pixel
-    if (ppumask & 0x08) {
-        // Bit selection based on fineX
-        // Since we shift left every cycle, the bit for the current pixel is always at MSB (0x8000)
-        // adjusted by fineX?
-        // Actually, NES standard shift registers shift left.
-        // The pixel to output is bit 15 - fineX.
-        uint16_t mask = 0x8000 >> fineX;
-        
-        uint8_t p0 = (bgShiftPatternLo & mask) ? 1 : 0;
-        uint8_t p1 = (bgShiftPatternHi & mask) ? 1 : 0;
-        bgPixel = (p1 << 1) | p0;
-        
-        uint8_t a0 = (bgShiftAttrLo & mask) ? 1 : 0;
-        uint8_t a1 = (bgShiftAttrHi & mask) ? 1 : 0;
-        bgPalette = (a1 << 1) | a0;
-        
-        bgOpaque = (bgPixel != 0);
+    bool bgVisible = (ppumask & 0x08);
+    if (bgVisible) {
+        // Handle background clipping (bit 1 of $2001)
+        if (x >= 8 || (ppumask & 0x02)) {
+            // Bit selection based on fineX
+            uint16_t mask = 0x8000 >> fineX;
+            
+            uint8_t p0 = (bgShiftPatternLo & mask) ? 1 : 0;
+            uint8_t p1 = (bgShiftPatternHi & mask) ? 1 : 0;
+            bgPixel = (p1 << 1) | p0;
+            
+            uint8_t a0 = (bgShiftAttrLo & mask) ? 1 : 0;
+            uint8_t a1 = (bgShiftAttrHi & mask) ? 1 : 0;
+            bgPalette = (a1 << 1) | a0;
+            
+            bgOpaque = (bgPixel != 0);
+        }
     }
     
-    // 2. Sprite Pixel (Simple iteration for now)
+    // 2. Sprite Pixel
     uint8_t sprPixel = 0;
     uint8_t sprPalette = 0;
     bool sprPriority = false; // false = front
     bool sprOpaque = false;
     bool isSprite0 = false;
     
-    if (ppumask & 0x10) {
-        // Iterate front-to-back because we want the first sprite that matches
-        // (Priority is first in OAM wins)
-        // Wait, Secondary OAM is already sorted by X? No, by index in OAM.
-        // Iterate through valid sprites
-        // Iterate through valid sprites
-        for (int i = 0; i < spriteCount; i++) {
-            int idx = i * 4;
-            int sy = secondaryOAM[idx];
-            int st = secondaryOAM[idx + 1];
-            int sa = secondaryOAM[idx + 2];
-            int sx = secondaryOAM[idx + 3];
-            
-            if (x >= sx && x < sx + 8) {
-                // Determine sprite row
-                int row = scanline - sy; // 0-7 or 0-15
-                // Handle V-Flip
-                if (sa & 0x80) row = ((ppuctrl & 0x20) ? 15 : 7) - row;
+    bool sprVisible = (ppumask & 0x10);
+    if (sprVisible) {
+        // Handle sprite clipping (bit 2 of $2001)
+        if (x >= 8 || (ppumask & 0x04)) {
+            // Iterate front-to-back because we want the first sprite that matches
+            for (int i = 0; i < spriteCount; i++) {
+                int idx = i * 4;
+                int sy = secondaryOAM[idx];
+                int st = secondaryOAM[idx + 1];
+                int sa = secondaryOAM[idx + 2];
+                int sx = secondaryOAM[idx + 3];
                 
-                // Fetch pattern
-                // Optimization: Cached fetches would be better, but doing it here for simplicity
-                uint16_t patternBase = (ppuctrl & 0x08) ? 0x1000 : 0x0000;
-                
-                // 8x16 mode check
-                if (ppuctrl & 0x20) {
-                    patternBase = (st & 1) ? 0x1000 : 0x0000;
-                    st &= 0xFE;
-                    if (row >= 8) { st++; row -= 8; }
-                }
-                
-                uint8_t p0 = vramRead(patternBase + (st * 16) + row);
-                uint8_t p1 = vramRead(patternBase + (st * 16) + row + 8);
-                
-                // Handle H-Flip
-                int col = x - sx; // 0-7
-                if (sa & 0x40) col = 7 - col;
-                
-                uint8_t bit0 = (p0 >> (7 - col)) & 1;
-                uint8_t bit1 = (p1 >> (7 - col)) & 1;
-                uint8_t pixel = (bit1 << 1) | bit0;
-                
-                if (pixel != 0) {
-                    sprPixel = pixel;
-                    sprPalette = (sa & 0x03) + 4; // Sprites use palette 4-7
-                    sprPriority = (sa & 0x20);
-                    sprOpaque = true;
-                    if (i == 0 && sprite0InSecondary) isSprite0 = true;
-                    break; // Found highest priority sprite
+                if (x >= sx && x < sx + 8) {
+                    // Determine sprite row
+                    int row = scanline - sy;
+                    if (sa & 0x80) row = ((ppuctrl & 0x20) ? 15 : 7) - row;
+                    
+                    uint16_t patternBase = (ppuctrl & 0x08) ? 0x1000 : 0x0000;
+                    if (ppuctrl & 0x20) {
+                        patternBase = (st & 1) ? 0x1000 : 0x0000;
+                        st &= 0xFE;
+                        if (row >= 8) { st++; row -= 8; }
+                    }
+                    
+                    uint8_t p0 = vramRead(patternBase + (st * 16) + row);
+                    uint8_t p1 = vramRead(patternBase + (st * 16) + row + 8);
+                    
+                    int col = x - sx;
+                    if (sa & 0x40) col = 7 - col;
+                    
+                    uint8_t bit0 = (p0 >> (7 - col)) & 1;
+                    uint8_t bit1 = (p1 >> (7 - col)) & 1;
+                    uint8_t pixel = (bit1 << 1) | bit0;
+                    
+                    if (pixel != 0) {
+                        sprPixel = pixel;
+                        sprPalette = (sa & 0x03) + 4;
+                        sprPriority = (sa & 0x20);
+                        sprOpaque = true;
+                        if (i == 0 && sprite0InSecondary) isSprite0 = true;
+                        break;
+                    }
                 }
             }
         }
     }
     
     // 3. Sprite 0 Hit
-    // 3. Sprite 0 Hit
-    // Simplified Logic: If Opaque Overlap, HIT.
-    // Ignored complex clipping logic for now to guarantee functionality.
     if (isSprite0 && bgOpaque && sprOpaque && x < 255) {
-        // Force hit if bits 3,4 set (Rendering enabled)
+        // Double check rendering enabled for both
         if ((ppumask & 0x18) == 0x18) {
              ppustatus |= 0x40;
         }
@@ -443,13 +426,9 @@ void PPU::renderPixel() {
     if (finalPixel == 0) paletteIndex = paletteTable[0]; // Global background color
     
     // Apply Grayscale
-    
-    // Apply Grayscale
     if (ppumask & 0x01) paletteIndex &= 0x30;
     
     // Write to buffer
-    // Note: Emulation of emphasis bits (5-7) requires color modification, 
-    // skipping for now as nesPalette is pre-computed.
     if (pixelBuffer) {
         pixelBuffer[scanline * SCREEN_WIDTH + (cycle - 1)] = nesPalette[paletteIndex & 0x3F];
     }

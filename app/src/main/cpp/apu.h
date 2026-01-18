@@ -6,7 +6,7 @@
 
 class AudioRingBuffer {
 public:
-    static const int SIZE = 8192; 
+    static const int SIZE = 2048; // Smaller buffer for lower latency
     uint8_t buffer[SIZE];
     int head = 0; 
     int tail = 0; 
@@ -18,11 +18,21 @@ public:
     void write(uint8_t sample) {
         buffer[tail] = sample;
         tail = (tail + 1) % SIZE;
-        if (tail == head) head = (head + 1) % SIZE;
+        if (tail == head) {
+             // Buffer overflow: push head forward to keep most recent audio
+             head = (head + 1) % SIZE;
+        }
     }
 
     int read(uint8_t* out, int maxCount) {
         int count = 0;
+        int level = getLevel();
+        
+        // If buffer is too deep (> 70%), skip some samples to catch up (Sync/Lag fix)
+        if (level > (SIZE * 0.7)) {
+            head = (tail - (int)(SIZE * 0.3) + SIZE) % SIZE;
+        }
+
         while (count < maxCount && head != tail) {
             out[count++] = buffer[head];
             head = (head + 1) % SIZE;
@@ -30,9 +40,12 @@ public:
         return count;
     }
 
+    int getLevel() {
+        return (tail >= head) ? (tail - head) : (SIZE - (head - tail));
+    }
+
     int getLevelPct() {
-        int count = (tail >= head) ? (tail - head) : (SIZE - (head - tail));
-        return (count * 100) / SIZE;
+        return (getLevel() * 100) / SIZE;
     }
 };
 

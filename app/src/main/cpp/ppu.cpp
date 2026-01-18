@@ -139,7 +139,6 @@ void PPU::step(int cpuCycles, CPU* cpu) {
                 
                 // Copy horizontal bits from t to v (Cycle 257)
                 if (cycle == 257) {
-                    loadBackgroundShifters();
                     copyX();
                 }
                 
@@ -308,14 +307,9 @@ void PPU::loadBackgroundShifters() {
     bgShiftPatternLo = (bgShiftPatternLo & 0xFF00) | bgNextTileLo;
     bgShiftPatternHi = (bgShiftPatternHi & 0xFF00) | bgNextTileHi;
     
-    // Attributes handling is tricky, simplified here:
-    // Expand 2-bit attribute to 8 bits (00 => 00000000, 01 => 11111111 usually? No, it's 2 bits per pixel)
-    // Actually, getting the right bit for the quadrant.
-    // For now simplistic approach:
-    uint8_t attr = bgNextTileAttr; 
-    
-    bgShiftAttrLo = (bgShiftAttrLo & 0xFF00) | ((attr & 1) ? 0xFF : 0);
-    bgShiftAttrHi = (bgShiftAttrHi & 0xFF00) | ((attr & 2) ? 0xFF : 0);
+    // Attributes handling: Expand 2-bit attribute to 8 bits for the next 8 pixels
+    bgShiftAttrLo = (bgShiftAttrLo & 0xFF00) | ((bgNextTileAttr & 1) ? 0x00FF : 0x0000);
+    bgShiftAttrHi = (bgShiftAttrHi & 0xFF00) | ((bgNextTileAttr & 2) ? 0x00FF : 0x0000);
 }
 
 void PPU::updateShifters() {
@@ -445,14 +439,6 @@ void PPU::renderPixel() {
     }
     
     // 5. Output
-    // DEBUG: FAKE SPRITE 0 HIT at Scanline 30
-    // If the game logic is ensuring a hit at the status bar (approx line 30 for SMB),
-    // this will trigger it artificially.
-    // If this FIXES scrolling, then our visual detection of Sprite 0 vs BG is the only bug.
-    if (scanline == 30 && x == 200 && (ppumask & 0x18)) {
-         ppustatus |= 0x40;
-    }
-
     uint16_t paletteIndex = paletteTable[finalPalette * 4 + finalPixel];
     if (finalPixel == 0) paletteIndex = paletteTable[0]; // Global background color
     

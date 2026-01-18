@@ -35,3 +35,10 @@
 4407	7342	1768684793799954093	/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/armeabi-v7a/libneso.so	deb9916828511940
 13	4290	1768685243902382247	CMakeFiles/neso.dir/ppu.cpp.o	5ae6fb745598fbad
 4295	6949	1768685246590492303	/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/armeabi-v7a/libneso.so	deb9916828511940
+10	3422	1768685515449499962	CMakeFiles/neso.dir/ppu.cpp.o	5ae6fb745598fbad
+3423	5888	1768685517893600028	/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/armeabi-v7a/libneso.so	deb9916828511940
+14	4793	1768768671571486142	CMakeFiles/neso.dir/renderer.cpp.o	54fde3c1d1c45d0d
+17	4819	1768768671643489099	CMakeFiles/neso.dir/jni_bridge.cpp.o	1d82df943ee10bf7
+14	4959	1768768671775494519	CMakeFiles/neso.dir/ppu.cpp.o	5ae6fb745598fbad
+13	5199	1768768672039505359	CMakeFiles/neso.dir/cpu.cpp.o	f0156742d4c6ccc9
+5200	7573	1768768674383601603	/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/armeabi-v7a/libneso.so	deb9916828511940

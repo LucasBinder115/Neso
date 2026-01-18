@@ -42,6 +42,8 @@ void CPU::write(uint16_t addr, uint8_t val) {
             if (!(oldCtrl & 0x80) && (val & 0x80) && (ppu->ppustatus & 0x80)) {
                 ppu->nmiOccurred = true;
             }
+            // Update tempAddr with nametable select bits (Loopy)
+            ppu->tempAddr = (ppu->tempAddr & 0xF3FF) | ((val & 0x03) << 10);
         }
         if (reg == 0x2001) ppu->ppumask = val;
         if (reg == 0x2003) ppu->oamAddr = val;

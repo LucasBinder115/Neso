@@ -61,8 +61,8 @@ struct PPU {
     // Shift Registers (Background)
     uint16_t bgShiftPatternLo = 0;
     uint16_t bgShiftPatternHi = 0;
-    uint8_t bgShiftAttrLo = 0;
-    uint8_t bgShiftAttrHi = 0;
+    uint16_t bgShiftAttrLo = 0;
+    uint16_t bgShiftAttrHi = 0;
 
     // Latches for next tile data
     uint8_t bgNextTileId = 0;

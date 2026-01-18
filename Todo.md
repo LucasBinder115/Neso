@@ -1,177 +1,291 @@
-🧠 Diagnóstico honesto do estado atual
 
-Pelo que você descreveu, tecnicamente você está em:
 
-✅ Fase 13 — IMPLEMENTADA (base sólida)
+Vou responder em três níveis, como manda a boa engenharia:
 
-Pipeline existe
+Leitura correta do que você observou (diagnóstico real)
 
-Loopy registers funcionam
+O que isso significa tecnicamente (sem ilusão)
 
-Attribute shifters 16-bit corretos
+Proposta clara das Fases 16, 17, 18, 19 e 20 — ajustadas à sua realidade atual
 
-Sprite 0 hit real
+Nada de jogar fase fora. Vamos evoluir o mapa.
 
-Scroll funcional
+1️⃣ Diagnóstico honesto do estado atual
 
-⚠️ Ainda não perfeita, mas funcional o suficiente para jogos reais.
+O seu resultado é excelente, mesmo com bugs.
 
-✅ Fase 14 — IMPLEMENTADA (funcional, não refinada)
+Vamos traduzir jogo por jogo:
 
-NMI dispara corretamente
+✅ Super Mario Bros
 
-CPU não trava mais
+Funciona completo
 
-APU em fase (timbre e pitch corretos)
+Áudio correto
 
-Timing geral coerente
+Colisão correta
+👉 Base validada
 
-⚠️ Performance e micro-jitter ainda presentes (esperado).
+⚠️ Mega Man 1 (Mapper 2)
 
-🟡 Fase 15 — PARCIALMENTE IMPLEMENTADA
+Jogo roda
 
-Aqui vem um ponto importante:
+Sem áudio
+👉 CPU + Mapper ok
+👉 APU ainda falha em casos mais exigentes
 
-A colisão já funciona porque a base está certa.
-Isso é sinal de sucesso das fases 13 e 14.
+⚠️ Battletoads (Mapper 7)
 
-Mas ainda faltam:
+Jogo roda
 
-leituras tardias
+Sprites bugados
+👉 Mapper parcialmente correto
+👉 Problema clássico de CHR banking + sprite fetch timing
 
-edge cases
+❌ Contra / Super C (Mapper 2 / MMC1)
 
-jogos que abusam de Sprite 0 hit
+Não roda
+👉 Problema de PRG banking / masking / reset behavior
 
-📌 Então o que muda no TODO.md?
-❌ O que NÃO faz mais sentido manter
+⚠️ Ninja Gaiden (Tecmo)
 
-No todo.md, remova o tom de “destravamento” das fases 13 e 14.
+Roda
 
-Essas frases agora estão obsoletas:
+Áudio e sprites bugados
+👉 Jogo extremamente agressivo com PPU/APU
+👉 Excelente sinal: se ele roda, o core é real
 
-“para sair da tela verde”
+📌 Resumo executivo:
 
-“para destravar”
+Você está exatamente no ponto onde o emulador funciona, mas ainda não é tolerante ao caos dos jogos reais.
 
-“ponto de ruptura”
+Isso é esperado. Tradicional. Clássico.
 
-👉 Isso já foi vencido.
+2️⃣ O que isso significa tecnicamente (sem romantizar)
+🔴 Importante entender isso:
 
-✅ Nova proposta de estrutura (recomendada)
-🟦 FASE 13 — Pipeline de Renderização (VALIDAÇÃO & AJUSTE FINO)
+Compatibilidade não é implementar mapper.
+É sobreviver ao abuso que o jogo faz dele.
 
-Status: 🟢 Funcional
-Objetivo agora: Fidelidade, não sobrevivência
+Contra, Mega Man, Ninja Gaiden:
 
-Novo foco:
+trocam banco no meio do frame
 
-Pequenos glitches de tile
+escrevem em registradores “fora de ordem”
 
-Scroll jitter
+dependem de reset states específicos
 
-Attribute edge cases
+fazem timing borderline
 
-Sprite overflow
+Mario não faz isso.
 
-Sprite priority
+Você agora está lidando com jogos que testam o hardware.
 
-Critério atualizado:
-✔ Mario jogável
-✔ Cenário correto
-✔ Glitches raros e localizados
+3️⃣ Proposta das próximas fases (16 → 20)
 
-🟦 FASE 14 — Sincronização (ESTABILIZAÇÃO)
+Agora vem a parte importante:
+as fases mudam de natureza.
 
-Status: 🟢 Funcional
-Objetivo agora: Estabilidade e previsibilidade
+Antes: “fazer funcionar”
+Agora: “tornar robusto”
 
-Novo foco:
+os games para se ter compativel agora no emulador independentemente se vao funcionar em sprites ou audio se estao compativeis dia vencido hell yeah
 
-Remover lentidões artificiais
+🟦 FASE 16 — Performance & Determinismo (Fundação Invisível)
 
-Corrigir frames “travadinhos”
+Tema:
 
-Garantir APU perfeitamente em fase
+“Sem determinismo, compatibilidade é sorte.”
+
+Objetivo real
+
+Antes de consertar Contra, você precisa garantir que:
+
+o mesmo input
+
+na mesma ROM
+
+gera o mesmo comportamento
+
+O que fazer agora
+
+Remover 100% dos logs em hot path
+
+Garantir stepCpu → stepPpu determinístico
+
+Confirmar que um frame sempre executa o mesmo número de ciclos
 
 Medir ciclos, não FPS
 
-Critério atualizado:
-✔ Jogo consistente
-✔ Áudio não “respira”
-✔ Input sem delay perceptível
+Critério de sucesso
 
-🟦 FASE 15 — Lógica de Jogo & Casos Limite
+✔ FPS estável
+✔ Sem micro-stutter
+✔ Replay consistente
 
-Status: 🟡 Em andamento real
+📌 Essa fase resolve bugs “fantasmas” depois.
 
-Agora sim ela vira protagonista.
+🟦 FASE 17 — Robustez de Mapper (Compatibilidade Real)
 
-Novo foco:
+Tema:
 
-Sprite 0 hit em jogos não-Mario
+“Mapper não é switch. É contrato.”
 
-Jogos com split-screen
+Aqui você não implementa mais mapper por mapper.
+Você cria uma base sólida para todos.
 
-Leituras maliciosas de $2002
+Subfases recomendadas
+17.1 — Mapper 2 (UNROM) — Contra
 
-Jogos que dependem de timing “errado”
+PRG mask correto
 
-🟦 FASE 16 — Performance (AGORA SIM)
+Reset state idêntico ao hardware
 
-Esse é o momento certo.
-Antes disso seria desperdício.
+Banco fixo no último slot
+
+Escrita fora de faixa ignorada (não crashar)
+
+👉 Contra só quebra mapper mal defensivo
+
+17.2 — Mapper 1 (MMC1) — Mega Man 2 / Super C
+
+Shift register exato (5 writes)
+
+Reset no bit 7
+
+Delay real entre writes
+
+PRG/CHR mode respeitado
+
+📌 MMC1 mal implementado = áudio e gráficos errados.
+
+17.3 — Mapper 7 (AOROM) — Battletoads
+
+32KB PRG switching
+
+Single-screen mirroring
+
+CHR fixa, mas PPU fetch sensível
+
+Sprites bugados aqui quase sempre são:
+👉 timing de sprite fetch + nametable mirror
+
+17.4 — Mapper 3 (CNROM)
+
+Simples, mas exige CHR switch correto
+
+Bugs aqui indicam erro no latch do PPU
+
+Critério de sucesso
+
+✔ Contra inicia
+✔ Mega Man 2 passa da intro
+✔ Battletoads sem sprites explodindo
+
+🟦 FASE 18 — APU Profissional (Áudio de Verdade)
+
+Tema:
+
+“Áudio não perdoa timing errado.”
+
+Agora o áudio vira protagonista.
+
+O que corrigir
+
+APU clock exatamente sincronizado com CPU
+
+Sem “catch-up” agressivo
+
+Buffer circular previsível
+
+Filtro low-pass consistente
+
+DMC channel (se ainda não estiver)
+
+📌 Mega Man sem áudio = APU fora de fase, não bug de jogo.
+
+Critério de sucesso
+
+✔ Música estável
+✔ Pitch consistente
+✔ Sem “respiração” sonora
+
+🟦 FASE 19 — PPU Edge Cases (Jogos Cruéis)
+
+Tema:
+
+“Jogos não respeitam a PPU. Eles a exploram.”
+
+Aqui entram:
+
+Sprite overflow flag real
+
+Sprite evaluation timing
+
+Priority rules
+
+Mid-frame changes de scroll
+
+Status bar tricks
+
+📌 Ninja Gaiden e Battletoads vivem aqui.
+
+Critério de sucesso
+
+✔ Sprites estáveis
+✔ Status bars corretas
+✔ Sem flicker inesperado
+
+🟦 FASE 20 — Compatibilidade Ampla & Regressão
+
+Tema:
+
+“Não quebrar o que já funcionava.”
 
 Aqui você:
 
-remove logs
+cria uma ROM list
 
-troca debug por release
+testa 30–50 jogos
 
-cacheia tiles
+registra bugs conhecidos
 
-reduz JNI
+garante que Mario continua perfeito
 
-mede frame time
+Critério de sucesso
 
-🧭 Conclusão clara e sem rodeio
+✔ Lista de jogos jogáveis
+✔ Bugs documentados
+✔ Emulador confiável
 
-Lucas, escuta isso com atenção:
+🧠 Conclusão direta (importante)
 
-Você não precisa mais “seguir as fases para destravar”.
-Você precisa usar as fases como checklist de qualidade.
+Lucas, grava isso:
 
-As fases continuam válidas como mapa mental,
-mas o projeto mudou de estado.
+Seu emulador já é real.
+O que falta agora não é “fazer funcionar”,
+é torná-lo resistente à maldade dos jogos.
 
-Antes:
+Contra não funcionar não é fracasso.
+É sinal de que você chegou no nível onde Contra começa a falar.
 
-“Será que funciona?”
+🎯 Próximo passo recomendado (agora mesmo)
 
-Agora:
+Se eu tivesse que escolher uma única coisa para você fazer amanhã:
 
-“Funciona. Onde não está fiel?”
+👉 Fase 17.1 — Mapper 2 (UNROM) defensivo, focado em Contra
 
-Isso é outra liga.
+Porque:
 
-📍 Minha recomendação prática (ação imediata)
+desbloqueia vários jogos
 
-Atualize o todo.md hoje
+força robustez
 
-Marque Fase 13 e 14 como Funcionais
+revela bugs estruturais
 
-Mude o texto para “Refinamento”
+Se quiser, no próximo passo eu posso:
 
-Abra um novo bloco
+te guiar mapper por mapper
 
-“Glitches conhecidos”
+montar uma checklist específica para Contra
 
-“Problemas de performance”
-
-“Diferenças vs FCEUX”
-
-Pare de usar Mario como único juiz
-
-Próximo jogo: Contra ou Ice Climber
-
-Se eles rodarem → seu emulador é real
+comparar comportamento com FCEUX ciclo a ciclo

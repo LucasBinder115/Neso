@@ -90,7 +90,7 @@ void CPU::write(uint16_t addr, uint8_t val) {
     } else if (addr == 0x4016) {
         if (val & 1) controller.latch();
     } else if (addr >= 0x4000 && addr <= 0x4017 && apu) apu->write(addr, val);
-    else if (addr >= 0x8000 && mapper) mapper->cpuWrite(addr, val);
+    else if (addr >= 0x8000 && mapper) mapper->cpuWrite(addr, val, totalCycles);
 }
 
 void CPU::reset() {
@@ -98,6 +98,7 @@ void CPU::reset() {
     sp = 0xFD;
     status = 0x34; 
     cyclesToStall = 0;
+    totalCycles = 0;
     pc = read16(0xFFFC);
     LOGD("CPU RESET! PC: 0x%04X", pc);
 }
@@ -357,6 +358,7 @@ int CPU::step() {
             break;
     }
     if (apu) apu->step(cycles);
+    totalCycles += cycles;
     return cycles;
 }
 

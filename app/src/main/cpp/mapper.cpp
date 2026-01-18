@@ -10,7 +10,7 @@ uint8_t Mapper0::cpuRead(uint16_t addr) {
     }
     return 0;
 }
-void Mapper0::cpuWrite(uint16_t addr, uint8_t val) {}
+void Mapper0::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {}
 uint8_t Mapper0::ppuRead(uint16_t addr) {
     if (addr < 0x2000) return rom->chrROM[addr];
     if (addr >= 0x2000 && addr <= 0x3EFF) {
@@ -44,7 +44,7 @@ uint8_t Mapper2::cpuRead(uint16_t addr) {
     }
     return 0;
 }
-void Mapper2::cpuWrite(uint16_t addr, uint8_t val) {
+void Mapper2::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr >= 0x8000) {
         prgBankSelect = val & 0x7F; // UxROM can have many banks
     }
@@ -78,7 +78,7 @@ uint8_t Mapper3::cpuRead(uint16_t addr) {
     }
     return 0;
 }
-void Mapper3::cpuWrite(uint16_t addr, uint8_t val) {
+void Mapper3::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr >= 0x8000) chrBankSelect = val & 0x03;
 }
 uint8_t Mapper3::ppuRead(uint16_t addr) {
@@ -148,11 +148,17 @@ uint8_t Mapper1::cpuRead(uint16_t addr) {
     return 0;
 }
 
-void Mapper1::cpuWrite(uint16_t addr, uint8_t val) {
+void Mapper1::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr < 0x8000) return;
+
+    // Consecutive write suppression (MMC1 behavior)
+    if (cycles - lastWriteCycle < 2) return; 
+    lastWriteCycle = cycles;
+
     if (val & 0x80) {
+        shiftReg = 0x10;
         control |= 0x0C;
-        reset();
+        updateOffsets();
     } else {
         bool complete = (shiftReg & 1);
         shiftReg >>= 1;
@@ -211,7 +217,7 @@ uint8_t Mapper7::cpuRead(uint16_t addr) {
     return 0;
 }
 
-void Mapper7::cpuWrite(uint16_t addr, uint8_t val) {
+void Mapper7::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr >= 0x8000) {
         prgBank = val & 0x0F;
         mirroring = (val >> 4) & 1;

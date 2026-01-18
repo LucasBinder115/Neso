@@ -104,8 +104,9 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
         while (cyclesThisFrame < 29780) { // Authentic NTSC (approx)
             int cycles = cpuGlobal->step();
             ppuGlobal.step(cycles, cpuGlobal);
+            apuGlobal.step(cycles); // FIX: Clock the APU!
+            
             if (ppuGlobal.nmiOccurred) {
-                // LOGD("NMI Triggered at Frame %d", frameCounter); // Optional: Uncomment if NMI is suspect
                 cpuGlobal->triggerNMI();
                 ppuGlobal.nmiOccurred = false;
             }

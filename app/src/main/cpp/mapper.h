@@ -10,7 +10,7 @@ public:
     virtual ~Mapper() {}
 
     virtual uint8_t cpuRead(uint16_t addr) = 0;
-    virtual void cpuWrite(uint16_t addr, uint8_t val) = 0;
+    virtual void cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) = 0;
     virtual uint8_t ppuRead(uint16_t addr) = 0;
     virtual void ppuWrite(uint16_t addr, uint8_t val) = 0;
 
@@ -23,16 +23,16 @@ class Mapper0 : public Mapper {
 public:
     Mapper0(Rom* rom) : Mapper(rom) {}
     uint8_t cpuRead(uint16_t addr) override;
-    void cpuWrite(uint16_t addr, uint8_t val) override;
+    void cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) override;
     uint8_t ppuRead(uint16_t addr) override;
     void ppuWrite(uint16_t addr, uint8_t val) override;
 };
 
 class Mapper2 : public Mapper { // UxROM
 public:
-    Mapper2(Rom* rom) : Mapper(rom) {}
+    Mapper2(Rom* rom) : Mapper(rom) { prgBankSelect = 0; }
     uint8_t cpuRead(uint16_t addr) override;
-    void cpuWrite(uint16_t addr, uint8_t val) override;
+    void cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) override;
     uint8_t ppuRead(uint16_t addr) override;
     void ppuWrite(uint16_t addr, uint8_t val) override;
 private:
@@ -43,7 +43,7 @@ class Mapper3 : public Mapper { // CNROM
 public:
     Mapper3(Rom* rom) : Mapper(rom) {}
     uint8_t cpuRead(uint16_t addr) override;
-    void cpuWrite(uint16_t addr, uint8_t val) override;
+    void cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) override;
     uint8_t ppuRead(uint16_t addr) override;
     void ppuWrite(uint16_t addr, uint8_t val) override;
 private:
@@ -54,7 +54,7 @@ class Mapper1 : public Mapper { // MMC1
 public:
     Mapper1(Rom* rom) : Mapper(rom) { reset(); }
     uint8_t cpuRead(uint16_t addr) override;
-    void cpuWrite(uint16_t addr, uint8_t val) override;
+    void cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) override;
     uint8_t ppuRead(uint16_t addr) override;
     void ppuWrite(uint16_t addr, uint8_t val) override;
 private:
@@ -67,13 +67,14 @@ private:
     uint8_t chrBank1 = 0;
     uint32_t prgOffsets[2] = {0};
     uint32_t chrOffsets[2] = {0};
+    uint64_t lastWriteCycle = 0;
 };
 
 class Mapper7 : public Mapper { // AOROM
 public:
     Mapper7(Rom* rom) : Mapper(rom) {}
     uint8_t cpuRead(uint16_t addr) override;
-    void cpuWrite(uint16_t addr, uint8_t val) override;
+    void cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) override;
     uint8_t ppuRead(uint16_t addr) override;
     void ppuWrite(uint16_t addr, uint8_t val) override;
 private:

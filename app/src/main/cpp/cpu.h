@@ -44,6 +44,7 @@ struct CPU {
     void triggerNMI();
     
     int cyclesToStall = 0; // Para DMA ($4014)
+    uint64_t totalCycles = 0; // Para Mappers e APU timing
 
     void setZN(uint8_t val);
     

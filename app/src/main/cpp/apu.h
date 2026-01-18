@@ -153,6 +153,7 @@ struct APU {
     // Timing
     uint32_t totalSamplesGenerated = 0;
     double accumulatedCycles = 0;
+    float filterAccumulator = 128.0f;
     
     // Frame Counter ($4017)
     bool frameCounterMode = false; // false=4-step, true=5-step

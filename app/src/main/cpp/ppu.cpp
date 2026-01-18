@@ -238,10 +238,6 @@ void PPU::vramWrite(uint16_t addr, uint8_t val) {
         uint16_t paletteAddr = addr & 0x001F;
         if (paletteAddr >= 0x10 && (paletteAddr & 0x03) == 0) paletteAddr -= 0x10;
         paletteTable[paletteAddr] = val;
-        // DEBUG: Log Palette Writes
-        if (addr >= 0x3F00 && addr <= 0x3F1F) {
-            __android_log_print(ANDROID_LOG_DEBUG, "NesoPPU", "Palette Write: Addr=0x%04X (Idx=%d) Val=0x%02X", addr, paletteAddr, val);
-        }
     }
 }
 

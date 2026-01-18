@@ -33,6 +33,7 @@ void APU::reset() {
     
     accumulatedCycles = 0;
     totalSamplesGenerated = 0;
+    filterAccumulator = 128.0f;
     
     frameCounterCycles = 0;
     frameStep = 0;
@@ -185,9 +186,15 @@ void APU::step(int cycles) {
                 pulse_out = 95.88f / ((8128.0f / pulse_sum) + 100.0f);
             }
             
-            // Convert to 8-bit unsigned (0-255, centered at 128)
-            uint8_t sample = 128 + (uint8_t)(pulse_out * 127.0f);
-            ringBuffer.write(sample);
+            // Convert to 0-255 range with better normalization
+            // pulse_out max is ~0.258. Scaling to fill more range (approx +/- 90 around 128)
+            float targetSample = 128.0f + (pulse_out * 450.0f); 
+            if (targetSample > 255.0f) targetSample = 255.0f;
+            
+            // Stronger Low-Pass Filter (alpha = 0.2) for smoother sound
+            filterAccumulator = filterAccumulator + 0.2f * (targetSample - filterAccumulator);
+            
+            ringBuffer.write((uint8_t)filterAccumulator);
             
             accumulatedCycles -= CYCLES_PER_SAMPLE;
             totalSamplesGenerated++;

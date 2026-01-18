@@ -50,9 +50,7 @@ void CPU::write(uint16_t addr, uint8_t val) {
         if (reg == 0x2004) {
             ((uint8_t*)ppu->sprites)[ppu->oamAddr++] = val;
         }
-        // $2005 - PPUSCROLL (Loopy registers)
         if (reg == 0x2005) { // PPUSCROLL
-            LOGD("PPUSCROLL Write: 0x%02X (Toggle=%d)", val, ppu->writeToggle);
             if (!ppu->writeToggle) {
                 // First write: Coarse X and Fine X
                 ppu->tempAddr = (ppu->tempAddr & 0xFFE0) | (val >> 3);
@@ -66,7 +64,6 @@ void CPU::write(uint16_t addr, uint8_t val) {
         }
         // $2006 - PPUADDR (Loopy registers)
         if (reg == 0x2006) { // PPUADDR
-            LOGD("PPUADDR Write: 0x%02X (Toggle=%d)", val, ppu->writeToggle);
             if (!ppu->writeToggle) {
                 // First write: High 6 bits of t
                 ppu->tempAddr = (ppu->tempAddr & 0x00FF) | ((val & 0x3F) << 8);

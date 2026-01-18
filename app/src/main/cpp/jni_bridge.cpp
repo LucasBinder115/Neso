@@ -43,8 +43,10 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
     if (currentRom->isValid()) {
         int mapperId = currentRom->getMapperId();
         if (mapperId == 0) currentMapper = new Mapper0(currentRom);
+        else if (mapperId == 1) currentMapper = new Mapper1(currentRom);
         else if (mapperId == 2) currentMapper = new Mapper2(currentRom);
         else if (mapperId == 3) currentMapper = new Mapper3(currentRom);
+        else if (mapperId == 7) currentMapper = new Mapper7(currentRom);
         else {
             LOGD("Unsupported Mapper: %d - Defaulting to Mapper 0", mapperId);
             currentMapper = new Mapper0(currentRom);

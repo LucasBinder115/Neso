@@ -50,4 +50,35 @@ private:
     uint8_t chrBankSelect = 0;
 };
 
+class Mapper1 : public Mapper { // MMC1
+public:
+    Mapper1(Rom* rom) : Mapper(rom) { reset(); }
+    uint8_t cpuRead(uint16_t addr) override;
+    void cpuWrite(uint16_t addr, uint8_t val) override;
+    uint8_t ppuRead(uint16_t addr) override;
+    void ppuWrite(uint16_t addr, uint8_t val) override;
+private:
+    void reset();
+    void updateOffsets();
+    uint8_t shiftReg = 0x10;
+    uint8_t control = 0x0C;
+    uint8_t prgBank = 0;
+    uint8_t chrBank0 = 0;
+    uint8_t chrBank1 = 0;
+    uint32_t prgOffsets[2] = {0};
+    uint32_t chrOffsets[2] = {0};
+};
+
+class Mapper7 : public Mapper { // AOROM
+public:
+    Mapper7(Rom* rom) : Mapper(rom) {}
+    uint8_t cpuRead(uint16_t addr) override;
+    void cpuWrite(uint16_t addr, uint8_t val) override;
+    uint8_t ppuRead(uint16_t addr) override;
+    void ppuWrite(uint16_t addr, uint8_t val) override;
+private:
+    uint8_t prgBank = 0;
+    uint8_t mirroring = 0; // 0=screenA, 1=screenB
+};
+
 #endif

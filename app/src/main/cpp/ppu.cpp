@@ -5,7 +5,6 @@
 #include "mapper.h"
 #include "palette.h"
 #include "renderer.h"
-#include <android/log.h>
 
 void PPU::reset() {
     memset(paletteTable, 0, sizeof(paletteTable));
@@ -54,16 +53,84 @@ uint8_t PPU::readStatus() {
     return res;
 }
 
+uint8_t PPU::readRegister(uint16_t addr) {
+    uint16_t reg = 0x2000 + (addr % 8);
+    switch (reg) {
+        case 0x2002: return readStatus();
+        case 0x2004: return 0; // OAMDATA read not implemented
+        case 0x2007: {
+            uint8_t data = vramRead(vramAddr);
+            if (vramAddr < 0x3F00) {
+                uint8_t buffered = readBuffer;
+                readBuffer = data;
+                data = buffered;
+            } else {
+                readBuffer = mapper ? mapper->ppuRead(vramAddr - 0x1000) : 0;
+            }
+            vramAddr += (ppuctrl & 0x04) ? 32 : 1;
+            return data;
+        }
+        default: return 0;
+    }
+}
+
+void PPU::writeRegister(uint16_t addr, uint8_t val) {
+    uint16_t reg = 0x2000 + (addr % 8);
+    switch (reg) {
+        case 0x2000: {
+            uint8_t oldCtrl = ppuctrl;
+            ppuctrl = val;
+            if (!(oldCtrl & 0x80) && (val & 0x80) && (ppustatus & 0x80)) {
+                nmiOccurred = true;
+            }
+            tempAddr = (tempAddr & 0xF3FF) | ((val & 0x03) << 10);
+            break;
+        }
+        case 0x2001: ppumask = val; break;
+        case 0x2003: oamAddr = val; break;
+        case 0x2004: {
+            ((uint8_t*)sprites)[oamAddr++] = val;
+            break;
+        }
+        case 0x2005: {
+            if (!writeToggle) {
+                tempAddr = (tempAddr & 0xFFE0) | (val >> 3);
+                fineX = val & 0x07;
+            } else {
+                tempAddr = (tempAddr & 0x8FFF) | ((val & 0x07) << 12);
+                tempAddr = (tempAddr & 0xFC1F) | ((val & 0xF8) << 2);
+            }
+            writeToggle = !writeToggle;
+            break;
+        }
+        case 0x2006: {
+            if (!writeToggle) {
+                tempAddr = (tempAddr & 0x00FF) | ((val & 0x3F) << 8);
+            } else {
+                tempAddr = (tempAddr & 0xFF00) | val;
+                vramAddr = tempAddr;
+            }
+            writeToggle = !writeToggle;
+            break;
+        }
+        case 0x2007: {
+            vramWrite(vramAddr, val);
+            vramAddr += (ppuctrl & 0x04) ? 32 : 1;
+            break;
+        }
+    }
+}
+
 void PPU::step(int cpuCycles, CPU* cpu) {
     int ppuCycles = cpuCycles * 3;
     for (int i = 0; i < ppuCycles; i++) {
-        // Odd Frame Skip (Scanline 261, Cycle 339 -> 0 if odd & rendering enabled)
+        // Odd Frame Skip
         if (scanline == 261 && cycle == 339 && oddFrame && (ppumask & 0x18)) {
             cycle = 0;
             scanline = 0;
             oddFrame = !oddFrame;
             ppustatus &= ~0xE0;
-            continue; // Skip increment
+            continue;
         }
 
         cycle++;
@@ -72,145 +139,115 @@ void PPU::step(int cpuCycles, CPU* cpu) {
             scanline++;
             if (scanline >= 262) {
                 scanline = 0;
-                oddFrame = !oddFrame; // Toggle odd/even frame
-                ppustatus &= ~0xE0; // Clear VBlank, Sprite 0 Hit, Sprite Overflow
+                oddFrame = !oddFrame;
+                ppustatus &= ~0xE0;
             }
         }
 
-        // Visible scanlines (0-239) and pre-render (261)
-        bool isVisibleOrPrerender = (scanline < 240) || (scanline == 261);
+        processBackground();
+        processSprites();
+        handleVBlank();
+    }
+}
+
+void PPU::processBackground() {
+    bool isVisibleOrPrerender = (scanline < 240) || (scanline == 261);
+    if (isVisibleOrPrerender && (ppumask & 0x18)) {
+        updateShifters();
         
-        if (isVisibleOrPrerender) {
-            // --- Background Fetch Pipeline ---
-            if (ppumask & 0x18) { // Rendering enabled
-                updateShifters();
-                
-                // Pixel Output (Cycle 1-256, visible scanlines only)
-                if (scanline < 240 && cycle >= 1 && cycle <= 256) {
-                    renderPixel();
-                }
-                
-                // Cycles 1-256 (Scanlines 0-239 & 261)
-                if ((cycle >= 1 && cycle <= 256) || (cycle >= 321 && cycle <= 336)) {
-                    int step = (cycle - 1) % 8;
-                    
-                    // NT Byte (Cycle 2)
-                    if (step == 1) {
-                        uint16_t ntAddr = 0x2000 | (vramAddr & 0x0FFF);
-                        bgNextTileId = vramRead(ntAddr);
-                    }
-                    
-                    // AT Byte (Cycle 4)
-                    if (step == 3) {
-                        uint16_t atAddr = 0x23C0 | (vramAddr & 0x0C00) | ((vramAddr >> 4) & 0x38) | ((vramAddr >> 2) & 0x07);
-                        bgNextTileAttr = vramRead(atAddr);
-                        if (vramAddr & 0x0040) bgNextTileAttr >>= 4; // Bottom
-                        if (vramAddr & 0x0002) bgNextTileAttr >>= 2; // Right
-                        bgNextTileAttr &= 0x03;
-                    }
-                    
-                    // Pattern Lo (Cycle 6)
-                    if (step == 5) {
-                        uint16_t patternAddr = ((ppuctrl & 0x10) ? 0x1000 : 0x0000) + ((uint16_t)bgNextTileId << 4) + ((vramAddr >> 12) & 0x07);
-                        bgNextTileLo = vramRead(patternAddr);
-                    }
-                    
-                    // Pattern Hi (Cycle 8)
-                    if (step == 7) {
-                        uint16_t patternAddr = ((ppuctrl & 0x10) ? 0x1000 : 0x0000) + ((uint16_t)bgNextTileId << 4) + ((vramAddr >> 12) & 0x07) + 8;
-                        bgNextTileHi = vramRead(patternAddr);
-                        
-                        incrementX();
-                        loadBackgroundShifters();
-                    }
-                    
-                    // Vertical Increment (Cycle 256)
-                    if (cycle == 256) {
-                        incrementY();
-                    }
-                }
-                
-                // Copy horizontal bits from t to v (Cycle 257)
-                if (cycle == 257) {
-                    copyX();
-                }
-                
-                // Copy vertical bits from t to v (Pre-render 280-304)
-                if (scanline == 261 && cycle >= 280 && cycle <= 304) {
-                    copyY();
-                }
-            }
-
-            // --- Sprite Evaluation Pipeline (Unchanged) ---
-            // Cycles 1-64: Clear secondary OAM
-            if (cycle >= 1 && cycle <= 64) {
-                int idx = ((cycle - 1) / 2) % 32;
-                if (cycle % 2 == 0) {
-                    secondaryOAM[idx] = 0xFF;
-                }
-            }
-            
-            
-            // Cycle 65: Initialize & Instant Eval consolidated below
-            
-            // Cycles 65-256: Sprite Evaluation (REPLACED by Instant Eval below)
-            // if (cycle >= 65 && cycle <= 256) { ... } logic removed.
-            
-            // Cycle 65: Instant Sprite Evaluation (Cheat for stability)
-            if (cycle == 65 && scanline < 240) {
-                spriteCount = 0;
-                sprite0InSecondary = false;
-                
-                int n = 0; 
-                int spriteHeight = (ppuctrl & 0x20) ? 16 : 8;
-
-                // 1. Find the first 8 sprites on this scanline
-                while (n < 64 && spriteCount < 8) {
-                    int y = sprites[n].y;
-                    int diff = scanline - y;
-                    if (diff >= 0 && diff < spriteHeight) {
-                        int secIdx = spriteCount * 4;
-                        secondaryOAM[secIdx + 0] = sprites[n].y;
-                        secondaryOAM[secIdx + 1] = sprites[n].tile_index;
-                        secondaryOAM[secIdx + 2] = sprites[n].attributes;
-                        secondaryOAM[secIdx + 3] = sprites[n].x;
-                        if (n == 0) sprite0InSecondary = true;
-                        spriteCount++;
-                    }
-                    n++;
-                }
-
-                // 2. Sprite Overflow Hardware Bug
-                // Continue scanning for a 9th sprite, but with the m-counter increment bug
-                int m = 0;
-                while (n < 64) {
-                    int y = ((uint8_t*)sprites)[n * 4 + m];
-                    int diff = scanline - y;
-                    if (diff >= 0 && diff < spriteHeight) {
-                        ppustatus |= 0x20; // Set Overflow flag
-                        break;
-                    } else {
-                        n++;
-                        m = (m + 1) & 0x03; // Hardware bug: increments both n and m
-                    }
-                }
-            }
-        }
-
-        // VBlank Start (Scanline 241, Cycle 1)
-        if (scanline == 241 && cycle == 1) {
-            ppustatus |= 0x80;
-            // NMI Trigger
-            if (ppuctrl & 0x80) {
-                 nmiOccurred = true; 
-            }
+        if (scanline < 240 && cycle >= 1 && cycle <= 256) {
+            renderPixel();
         }
         
-        // Pre-render scanline: Clear flags (Scanline 261, Cycle 1)
-        if (scanline == 261 && cycle == 1) {
-            ppustatus &= ~0xE0; // Clear VBlank, Sprite 0 Hit, Sprite Overflow
-            sprite0InSecondary = false;
+        if ((cycle >= 1 && cycle <= 256) || (cycle >= 321 && cycle <= 336)) {
+            int step = (cycle - 1) % 8;
+            if (step == 1) {
+                uint16_t ntAddr = 0x2000 | (vramAddr & 0x0FFF);
+                bgNextTileId = vramRead(ntAddr);
+            }
+            if (step == 3) {
+                uint16_t atAddr = 0x23C0 | (vramAddr & 0x0C00) | ((vramAddr >> 4) & 0x38) | ((vramAddr >> 2) & 0x07);
+                bgNextTileAttr = vramRead(atAddr);
+                if (vramAddr & 0x0040) bgNextTileAttr >>= 4;
+                if (vramAddr & 0x0002) bgNextTileAttr >>= 2;
+                bgNextTileAttr &= 0x03;
+            }
+            if (step == 5) {
+                uint16_t patternAddr = ((ppuctrl & 0x10) ? 0x1000 : 0x0000) + ((uint16_t)bgNextTileId << 4) + ((vramAddr >> 12) & 0x07);
+                bgNextTileLo = vramRead(patternAddr);
+            }
+            if (step == 7) {
+                uint16_t patternAddr = ((ppuctrl & 0x10) ? 0x1000 : 0x0000) + ((uint16_t)bgNextTileId << 4) + ((vramAddr >> 12) & 0x07) + 8;
+                bgNextTileHi = vramRead(patternAddr);
+                incrementX();
+                loadBackgroundShifters();
+            }
+            if (cycle == 256) incrementY();
         }
+        
+        if (cycle == 257) copyX();
+        if (scanline == 261 && cycle >= 280 && cycle <= 304) copyY();
+    }
+}
+
+void PPU::processSprites() {
+    bool isVisibleOrPrerender = (scanline < 240) || (scanline == 261);
+    if (!isVisibleOrPrerender) return;
+
+    // Cycles 1-64: Clear secondary OAM
+    if (cycle >= 1 && cycle <= 64) {
+        int idx = ((cycle - 1) / 2) % 32;
+        if (cycle % 2 == 0) secondaryOAM[idx] = 0xFF;
+    }
+    
+    // Cycle 65: Instant Sprite Evaluation (Cheat for stability/perf)
+    if (cycle == 65 && scanline < 240) {
+        spriteCount = 0;
+        sprite0InSecondary = false;
+        
+        int n = 0; 
+        int spriteHeight = (ppuctrl & 0x20) ? 16 : 8;
+
+        while (n < 64 && spriteCount < 8) {
+            int sy = sprites[n].y;
+            int diff = scanline - sy;
+            if (diff >= 0 && diff < spriteHeight) {
+                int secIdx = spriteCount * 4;
+                secondaryOAM[secIdx + 0] = sprites[n].y;
+                secondaryOAM[secIdx + 1] = sprites[n].tile_index;
+                secondaryOAM[secIdx + 2] = sprites[n].attributes;
+                secondaryOAM[secIdx + 3] = sprites[n].x;
+                if (n == 0) sprite0InSecondary = true;
+                spriteCount++;
+            }
+            n++;
+        }
+
+        // Sprite Overflow Hardware Bug
+        int m = 0;
+        while (n < 64) {
+            int y = ((uint8_t*)sprites)[n * 4 + m];
+            int diff = scanline - y;
+            if (diff >= 0 && diff < spriteHeight) {
+                ppustatus |= 0x20;
+                break;
+            } else {
+                n++;
+                m = (m + 1) & 0x03;
+            }
+        }
+    }
+}
+
+void PPU::handleVBlank() {
+    if (scanline == 241 && cycle == 1) {
+        ppustatus |= 0x80;
+        if (ppuctrl & 0x80) nmiOccurred = true;
+    }
+    
+    if (scanline == 261 && cycle == 1) {
+        ppustatus &= ~0xE0;
+        sprite0InSecondary = false;
     }
 }
 
@@ -221,7 +258,7 @@ uint8_t PPU::vramRead(uint16_t addr) {
     } else {
         uint16_t paletteAddr = addr & 0x001F;
         if (paletteAddr >= 0x10 && (paletteAddr & 0x03) == 0) paletteAddr -= 0x10;
-        return paletteTable[paletteAddr];
+        return paletteTable[paletteAddr & 0x1F];
     }
 }
 
@@ -232,7 +269,7 @@ void PPU::vramWrite(uint16_t addr, uint8_t val) {
     } else {
         uint16_t paletteAddr = addr & 0x001F;
         if (paletteAddr >= 0x10 && (paletteAddr & 0x03) == 0) paletteAddr -= 0x10;
-        paletteTable[paletteAddr] = val;
+        paletteTable[paletteAddr & 0x1F] = val;
     }
 }
 
@@ -421,6 +458,9 @@ void PPU::renderPixel() {
     
     // Write to buffer
     if (pixelBuffer) {
-        pixelBuffer[scanline * SCREEN_WIDTH + (cycle - 1)] = nesPalette[paletteIndex & 0x3F];
+        int index = scanline * SCREEN_WIDTH + (cycle - 1);
+        if (index >= 0 && index < SCREEN_WIDTH * SCREEN_HEIGHT) {
+            pixelBuffer[index] = nesPalette[paletteIndex & 0x3F];
+        }
     }
 }

@@ -10,23 +10,7 @@
 
 uint8_t CPU::read(uint16_t addr) {
     if (addr <= 0x1FFF) return ram[addr & 0x7FF];
-    if (addr >= 0x2000 && addr <= 0x3FFF) {
-        uint16_t reg = 0x2000 + (addr % 8);
-        if (reg == 0x2002) return ppu->readStatus();
-        if (reg == 0x2004) return 0; 
-        if (reg == 0x2007) {
-            uint8_t data = ppu->vramRead(ppu->vramAddr);
-            if (ppu->vramAddr < 0x3F00) {
-                uint8_t buffered = ppu->readBuffer;
-                ppu->readBuffer = data;
-                data = buffered;
-            } else {
-                ppu->readBuffer = ppu->mapper ? ppu->mapper->ppuRead(ppu->vramAddr - 0x1000) : 0;
-            }
-            ppu->vramAddr += (ppu->ppuctrl & 0x04) ? 32 : 1;
-            return data;
-        }
-    }
+    if (addr >= 0x2000 && addr <= 0x3FFF) return ppu->readRegister(addr);
     if (addr == 0x4016) return controller.read();
     if (addr >= 0x8000 && mapper) return mapper->cpuRead(addr);
     return 0x00;
@@ -34,51 +18,8 @@ uint8_t CPU::read(uint16_t addr) {
 
 void CPU::write(uint16_t addr, uint8_t val) {
     if (addr <= 0x1FFF) ram[addr & 0x7FF] = val;
-    else if (addr >= 0x2000 && addr <= 0x3FFF) {
-        uint16_t reg = 0x2000 + (addr % 8);
-        if (reg == 0x2000) {
-            uint8_t oldCtrl = ppu->ppuctrl;
-            ppu->ppuctrl = val;
-            if (!(oldCtrl & 0x80) && (val & 0x80) && (ppu->ppustatus & 0x80)) {
-                ppu->nmiOccurred = true;
-            }
-            // Update tempAddr with nametable select bits (Loopy)
-            ppu->tempAddr = (ppu->tempAddr & 0xF3FF) | ((val & 0x03) << 10);
-        }
-        if (reg == 0x2001) ppu->ppumask = val;
-        if (reg == 0x2003) ppu->oamAddr = val;
-        if (reg == 0x2004) {
-            ((uint8_t*)ppu->sprites)[ppu->oamAddr++] = val;
-        }
-        if (reg == 0x2005) { // PPUSCROLL
-            if (!ppu->writeToggle) {
-                // First write: Coarse X and Fine X
-                ppu->tempAddr = (ppu->tempAddr & 0xFFE0) | (val >> 3);
-                ppu->fineX = val & 0x07;
-            } else {
-                // Second write: Coarse Y and Fine Y
-                ppu->tempAddr = (ppu->tempAddr & 0x8FFF) | ((val & 0x07) << 12);
-                ppu->tempAddr = (ppu->tempAddr & 0xFC1F) | ((val & 0xF8) << 2);
-            }
-            ppu->writeToggle = !ppu->writeToggle;
-        }
-        // $2006 - PPUADDR (Loopy registers)
-        if (reg == 0x2006) { // PPUADDR
-            if (!ppu->writeToggle) {
-                // First write: High 6 bits of t
-                ppu->tempAddr = (ppu->tempAddr & 0x00FF) | ((val & 0x3F) << 8);
-            } else {
-                // Second write: Low 8 bits of t, then copy t to v
-                ppu->tempAddr = (ppu->tempAddr & 0xFF00) | val;
-                ppu->vramAddr = ppu->tempAddr;
-            }
-            ppu->writeToggle = !ppu->writeToggle;
-        }
-        if (reg == 0x2007) {
-            ppu->vramWrite(ppu->vramAddr, val);
-            ppu->vramAddr += (ppu->ppuctrl & 0x04) ? 32 : 1;
-        }
-    } else if (addr == 0x4014) {
+    else if (addr >= 0x2000 && addr <= 0x3FFF) ppu->writeRegister(addr, val);
+ else if (addr == 0x4014) {
         // OAM DMA: Copy 256 bytes to OAM
         uint16_t base = (uint16_t)val << 8;
         for (int i = 0; i < 256; i++) {

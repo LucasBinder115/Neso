@@ -81,7 +81,6 @@ struct SquareChannel {
     uint8_t dutyCycle = 2;
 
     static const uint8_t DUTIES[4][8];
-    static const uint8_t LENGTH_TABLE[32];
 
     void clockTimer() {
         if (timerValue == 0) {
@@ -158,7 +157,6 @@ struct TriangleChannel {
     bool enabled = false;
 
     static const uint8_t TRIANGLE_STEPS[32];
-    static const uint8_t LENGTH_TABLE[32];
 
     void clockTimer() {
         if (enabled && timerPeriod >= 2) {
@@ -215,7 +213,6 @@ struct NoiseChannel {
     bool enabled = false;
 
     static const uint16_t PERIOD_TABLE[16];
-    static const uint8_t LENGTH_TABLE[32];
 
     void clockTimer() {
         if (timerValue == 0) {
@@ -298,6 +295,7 @@ struct APU {
     // 4-step mode: Quarter frames at 3729, 7457, 11186, 14915
     // Half frames at 7457, 14915
     static constexpr uint32_t FRAME_COUNTER_RATE = 14915;
+    static const uint8_t LENGTH_TABLE[32];
 
     void reset();
     void write(uint16_t addr, uint8_t val);

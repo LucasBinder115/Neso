@@ -4,6 +4,13 @@
 #include <cstdint>
 #include "rom.h"
 
+enum class MirrorMode {
+    Horizontal,
+    Vertical,
+    SingleScreenLower,
+    SingleScreenUpper
+};
+
 class Mapper {
 public:
     Mapper(Rom* rom) : rom(rom) {}
@@ -14,6 +21,22 @@ public:
     virtual uint8_t ppuRead(uint16_t addr) = 0;
     virtual void ppuWrite(uint16_t addr, uint8_t val) = 0;
     virtual void reset() {}
+
+    uint16_t getMirrorAddr(uint16_t addr, MirrorMode mode) {
+        uint16_t ntAddr = addr & 0x0FFF;
+        switch (mode) {
+            case MirrorMode::Horizontal:
+                return ((ntAddr & 0x0800) >> 1) | (ntAddr & 0x03FF);
+            case MirrorMode::Vertical:
+                return ntAddr & 0x07FF;
+            case MirrorMode::SingleScreenLower:
+                return ntAddr & 0x03FF;
+            case MirrorMode::SingleScreenUpper:
+                return 0x0400 | (ntAddr & 0x03FF);
+            default:
+                return ntAddr & 0x07FF;
+        }
+    }
 
 protected:
     Rom* rom;

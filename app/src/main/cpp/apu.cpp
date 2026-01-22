@@ -7,7 +7,7 @@ const uint8_t SquareChannel::DUTIES[4][8] = {
     {1, 0, 0, 1, 1, 1, 1, 1}  // 75%
 };
 
-const uint8_t SquareChannel::LENGTH_TABLE[32] = {
+const uint8_t APU::LENGTH_TABLE[32] = {
     10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
     12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
 };
@@ -21,15 +21,7 @@ const uint16_t NoiseChannel::PERIOD_TABLE[16] = {
     4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068
 };
 
-const uint8_t TriangleChannel::LENGTH_TABLE[32] = {
-    10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
-    12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
-};
 
-const uint8_t NoiseChannel::LENGTH_TABLE[32] = {
-    10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
-    12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
-};
 
 void APU::reset() {
     square1 = {};
@@ -70,7 +62,7 @@ void APU::write(uint16_t addr, uint8_t val) {
         case 0x4003:
             square1.timerPeriod = (square1.timerPeriod & 0x00FF) | ((val & 0x07) << 8);
             if (square1.enabled) {
-                square1.lengthCounter = SquareChannel::LENGTH_TABLE[val >> 3];
+                square1.lengthCounter = APU::LENGTH_TABLE[val >> 3];
             }
             square1.dutyPos = 0;
             square1.envelopeStart = true;
@@ -96,7 +88,7 @@ void APU::write(uint16_t addr, uint8_t val) {
         case 0x4007:
             square2.timerPeriod = (square2.timerPeriod & 0x00FF) | ((val & 0x07) << 8);
             if (square2.enabled) {
-                square2.lengthCounter = SquareChannel::LENGTH_TABLE[val >> 3];
+                square2.lengthCounter = APU::LENGTH_TABLE[val >> 3];
             }
             square2.dutyPos = 0;
             square2.envelopeStart = true;
@@ -113,7 +105,7 @@ void APU::write(uint16_t addr, uint8_t val) {
         case 0x400B:
             triangle.timerPeriod = (triangle.timerPeriod & 0x00FF) | ((val & 0x07) << 8);
             if (triangle.enabled) {
-                triangle.lengthCounter = TriangleChannel::LENGTH_TABLE[val >> 3];
+                triangle.lengthCounter = APU::LENGTH_TABLE[val >> 3];
             }
             triangle.linearCounterReloadFlag = true;
             break;
@@ -130,7 +122,7 @@ void APU::write(uint16_t addr, uint8_t val) {
             break;
         case 0x400F:
             if (noise.enabled) {
-                noise.lengthCounter = NoiseChannel::LENGTH_TABLE[val >> 3];
+                noise.lengthCounter = APU::LENGTH_TABLE[val >> 3];
             }
             noise.envelopeStart = true;
             break;
@@ -246,8 +238,11 @@ void APU::step(int cycles) {
             
             // Convert to 0-255 range (output is roughly 0.0 to 1.0, but scaling for volume)
             float targetSample = 128.0f + (output * 600.0f); 
+            
+            // Hardening: Clamp and sanitize
             if (targetSample > 255.0f) targetSample = 255.0f;
-            if (targetSample < 0.0f) targetSample = 0.0f;
+            else if (targetSample < 0.0f) targetSample = 0.0f;
+            else if (!(targetSample >= 0.0f && targetSample <= 255.0f)) targetSample = 128.0f; // NaN protection
             
             // Low-Pass Filter
             filterAccumulator = filterAccumulator + 0.25f * (targetSample - filterAccumulator);

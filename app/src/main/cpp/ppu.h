@@ -47,6 +47,8 @@ struct PPU {
 
     void reset();
     void step(int cycles, struct CPU* cpu);
+    uint8_t readRegister(uint16_t addr);
+    void writeRegister(uint16_t addr, uint8_t val);
     uint8_t readStatus();
     uint8_t vramRead(uint16_t addr);
     void vramWrite(uint16_t addr, uint8_t val);
@@ -76,6 +78,11 @@ struct PPU {
     
     // Pixel Rendering
     void renderPixel();
+
+private:
+    void processBackground();
+    void processSprites();
+    void handleVBlank();
 };
 
 #endif

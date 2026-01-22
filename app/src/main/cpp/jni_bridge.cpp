@@ -8,6 +8,7 @@
 #include <cstring>
 #include <android/log.h>
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "NesoJNI", __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "NesoJNI", __VA_ARGS__)
 
 static uint32_t screenBuffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 static CPU* cpuGlobal = nullptr;
@@ -83,25 +84,12 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
         // Using static counter to log every 60 frames (1 sec) to be even lighter? 
         // User asked for "Heartbeat", 60Hz is fine for debugging "stuck" state.
         
-        /*
-        static int frameCounter = 0;
-        frameCounter++;
-        
-        if (frameCounter % 60 == 0) {
-            LOGD("💓 Heartbeat #%d: PC=%04X SP=%02X Scan=%d Cyc=%d VRAM=%04X Pal[0]=%02X Spr0Hit=%d Spr0Y=%d", 
-                 frameCounter, cpuGlobal->pc, cpuGlobal->sp, ppuGlobal.scanline, ppuGlobal.cycle,
-                 ppuGlobal.vramAddr, ppuGlobal.paletteTable[0], (ppuGlobal.ppustatus & 0x40) != 0, ppuGlobal.sprites[0].y);
-        }
-
-        static uint16_t lastPC = 0;
-        static int stagnantFrames = 0;
-        */
-    
+        // --- Core Execution Loop ---
         int cyclesThisFrame = 0;
         while (cyclesThisFrame < 29780) { // Authentic NTSC (approx)
             int cycles = cpuGlobal->step();
             ppuGlobal.step(cycles, cpuGlobal);
-            apuGlobal.step(cycles); // FIX: Clock the APU!
+            apuGlobal.step(cycles);
             
             if (ppuGlobal.nmiOccurred) {
                 cpuGlobal->triggerNMI();
@@ -109,21 +97,34 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
             }
             cyclesThisFrame += cycles;
         }
-    
-        /* 
-        // Stuck detection removed for performance, relying on Heartbeat now.
-        if (cpuGlobal->pc == lastPC) {
-             // ...
-        }
-        /*
-        lastPC = cpuGlobal->pc;
-        */
-    }
 
+        // --- Production Telemetry (Phase 20) ---
+        static uint16_t lastPC = 0;
+        static int stagnantFrames = 0;
+        static int frameCounter = 0;
+        frameCounter++;
+
+        if (cpuGlobal->pc == lastPC) {
+            stagnantFrames++;
+        } else {
+            stagnantFrames = 0;
+            lastPC = cpuGlobal->pc;
+        }
+
+        // Log Heartbeat every 120 frames (~2 seconds)
+        // Helps identify "Hangs" during wide compatibility testing
+        if (frameCounter % 120 == 0) {
+            LOGD("💓 Heartbeat: PC=%04X Sl=%d Cyc=%d Stagnant=%d", 
+                 cpuGlobal->pc, ppuGlobal.scanline, ppuGlobal.cycle, stagnantFrames);
+            
+            if (stagnantFrames > 300) { 
+                LOGW("⚠️ WARNING: CPU might be stuck! PC=0x%04X", cpuGlobal->pc);
+            }
+        }
+    }
 JNIEXPORT void JNICALL
 Java_com_neso_core_MainActivity_renderFrame(JNIEnv* env, jobject thiz, jintArray output) {
-    // OLD: renderScreen(screenBuffer, ppuGlobal);
-    // NEW: Cycle-accurate pixels are generated in PPU::step
+    if (!output) return;
     env->SetIntArrayRegion(output, 0, SCREEN_WIDTH * SCREEN_HEIGHT, (const jint*)screenBuffer);
 }
 

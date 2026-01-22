@@ -29,6 +29,16 @@ public:
     std::vector<uint8_t> prgROM;
     std::vector<uint8_t> chrROM;
 
+    uint8_t safePrgRead(uint32_t addr) const {
+        if (addr < prgROM.size()) return prgROM[addr];
+        return 0;
+    }
+
+    uint8_t safeChrRead(uint32_t addr) const {
+        if (addr < chrROM.size()) return chrROM[addr];
+        return 0;
+    }
+
 private:
     bool valid = false;
     size_t prgSize = 0;

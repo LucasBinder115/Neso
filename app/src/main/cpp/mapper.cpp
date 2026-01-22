@@ -17,22 +17,20 @@ uint8_t Mapper0::cpuRead(uint16_t addr) {
 }
 void Mapper0::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {}
 uint8_t Mapper0::ppuRead(uint16_t addr) {
-    if (addr < 0x2000) return rom->chrROM[addr];
+    if (addr < 0x2000) return rom->safeChrRead(addr);
     if (addr >= 0x2000 && addr <= 0x3EFF) {
-        uint16_t ntAddr = addr & 0x0FFF;
-        if (rom->isVerticalMirroring()) ntAddr &= 0x07FF;
-        else ntAddr = ((ntAddr & 0x0800) >> 1) | (ntAddr & 0x03FF);
-        return ppuVram[ntAddr % 2048];
+        MirrorMode mode = rom->isVerticalMirroring() ? MirrorMode::Vertical : MirrorMode::Horizontal;
+        return ppuVram[getMirrorAddr(addr, mode) % 2048];
     }
     return 0;
 }
 void Mapper0::ppuWrite(uint16_t addr, uint8_t val) {
-    if (addr < 0x2000 && rom->getChrSize() == 8192) rom->chrROM[addr] = val;
+    if (addr < 0x2000 && rom->getChrSize() == 8192) {
+        if (addr < rom->chrROM.size()) rom->chrROM[addr] = val;
+    }
     else if (addr >= 0x2000 && addr <= 0x3EFF) {
-        uint16_t ntAddr = addr & 0x0FFF;
-        if (rom->isVerticalMirroring()) ntAddr &= 0x07FF;
-        else ntAddr = ((ntAddr & 0x0800) >> 1) | (ntAddr & 0x03FF);
-        ppuVram[ntAddr % 2048] = val;
+        MirrorMode mode = rom->isVerticalMirroring() ? MirrorMode::Vertical : MirrorMode::Horizontal;
+        ppuVram[getMirrorAddr(addr, mode) % 2048] = val;
     }
 }
 
@@ -51,11 +49,11 @@ uint8_t Mapper2::cpuRead(uint16_t addr) {
     if (addr >= 0x8000 && addr <= 0xBFFF) {
         // Lower bank: Switchable
         uint8_t bank = prgBankSelect & prgBankMask;
-        return rom->prgROM[bank * 16384 + (addr & 0x3FFF)];
+        return rom->safePrgRead((uint32_t)bank * 16384 + (addr & 0x3FFF));
     } else if (addr >= 0xC000) {
         // Upper bank: Fixed to last bank
         int lastBank = numPrgBanks - 1;
-        return rom->prgROM[lastBank * 16384 + (addr & 0x3FFF)];
+        return rom->safePrgRead((uint32_t)lastBank * 16384 + (addr & 0x3FFF));
     }
     return 0;
 }
@@ -68,12 +66,10 @@ void Mapper2::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     }
 }
 uint8_t Mapper2::ppuRead(uint16_t addr) {
-    if (addr < 0x2000) return rom->chrROM[addr];
+    if (addr < 0x2000) return rom->safeChrRead(addr);
     if (addr >= 0x2000 && addr <= 0x3EFF) {
-        uint16_t ntAddr = addr & 0x0FFF;
-        if (rom->isVerticalMirroring()) ntAddr &= 0x07FF;
-        else ntAddr = ((ntAddr & 0x0800) >> 1) | (ntAddr & 0x03FF);
-        return ppuVram[ntAddr % 2048];
+        MirrorMode mode = rom->isVerticalMirroring() ? MirrorMode::Vertical : MirrorMode::Horizontal;
+        return ppuVram[getMirrorAddr(addr, mode) % 2048];
     }
     return 0;
 }
@@ -81,10 +77,8 @@ void Mapper2::ppuWrite(uint16_t addr, uint8_t val) {
     if (addr < 0x2000) {
         rom->chrROM[addr] = val;
     } else if (addr >= 0x2000 && addr <= 0x3EFF) {
-        uint16_t ntAddr = addr & 0x0FFF;
-        if (rom->isVerticalMirroring()) ntAddr &= 0x07FF;
-        else ntAddr = ((ntAddr & 0x0800) >> 1) | (ntAddr & 0x03FF);
-        ppuVram[ntAddr % 2048] = val;
+        MirrorMode mode = rom->isVerticalMirroring() ? MirrorMode::Vertical : MirrorMode::Horizontal;
+        ppuVram[getMirrorAddr(addr, mode) % 2048] = val;
     }
 }
 
@@ -114,7 +108,7 @@ void Mapper3::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
 uint8_t Mapper3::ppuRead(uint16_t addr) {
     if (addr < 0x2000) {
         int bank = chrBankSelect & chrBankMask;
-        return rom->chrROM[bank * 8192 + addr];
+        return rom->safeChrRead((uint32_t)bank * 8192 + addr);
     }
     if (addr >= 0x2000 && addr <= 0x3EFF) {
         uint16_t ntAddr = addr & 0x0FFF;
@@ -126,10 +120,8 @@ uint8_t Mapper3::ppuRead(uint16_t addr) {
 }
 void Mapper3::ppuWrite(uint16_t addr, uint8_t val) {
     if (addr >= 0x2000 && addr <= 0x3EFF) {
-        uint16_t ntAddr = addr & 0x0FFF;
-        if (rom->isVerticalMirroring()) ntAddr &= 0x07FF;
-        else ntAddr = ((ntAddr & 0x0800) >> 1) | (ntAddr & 0x03FF);
-        ppuVram[ntAddr % 2048] = val;
+        MirrorMode mode = rom->isVerticalMirroring() ? MirrorMode::Vertical : MirrorMode::Horizontal;
+        ppuVram[getMirrorAddr(addr, mode) % 2048] = val;
     }
 }
 
@@ -183,7 +175,7 @@ void Mapper1::updateOffsets() {
 uint8_t Mapper1::cpuRead(uint16_t addr) {
     if (addr >= 0x8000) {
         int idx = (addr >= 0xC000);
-        return rom->prgROM[prgOffsets[idx] + (addr & 0x3FFF)];
+        return rom->safePrgRead(prgOffsets[idx] + (addr & 0x3FFF));
     }
     return 0;
 }
@@ -232,33 +224,35 @@ void Mapper1::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
 uint8_t Mapper1::ppuRead(uint16_t addr) {
     if (addr < 0x2000) {
         int idx = (addr >= 0x1000);
-        return rom->chrROM[chrOffsets[idx] + (addr & 0x0FFF)];
+        return rom->safeChrRead(chrOffsets[idx] + (addr & 0x0FFF));
     }
     // Nametables
-    uint16_t ntAddr = addr & 0x0FFF;
     uint8_t m = control & 0x03;
+    MirrorMode mode;
     switch (m) {
-        case 0: ntAddr &= 0x03FF; break; // 1-screen A
-        case 1: ntAddr = 0x0400 | (ntAddr & 0x03FF); break; // 1-screen B
-        case 2: ntAddr &= 0x07FF; break; // Vertical
-        case 3: ntAddr = ((ntAddr & 0x0800) >> 1) | (ntAddr & 0x03FF); break; // Horizontal
+        case 0: mode = MirrorMode::SingleScreenLower; break;
+        case 1: mode = MirrorMode::SingleScreenUpper; break;
+        case 2: mode = MirrorMode::Vertical; break;
+        case 3: mode = MirrorMode::Horizontal; break;
+        default: mode = MirrorMode::Vertical; break;
     }
-    return ppuVram[ntAddr % 2048];
+    return ppuVram[getMirrorAddr(addr, mode) % 2048];
 }
 
 void Mapper1::ppuWrite(uint16_t addr, uint8_t val) {
     if (addr < 0x2000) {
         if (rom->getChrSize() == 0) rom->chrROM[addr] = val; // CHR-RAM
-    } else {
-        uint16_t ntAddr = addr & 0x0FFF;
+    } else if (addr >= 0x2000 && addr <= 0x3EFF) {
         uint8_t m = control & 0x03;
+        MirrorMode mode;
         switch (m) {
-            case 0: ntAddr &= 0x03FF; break;
-            case 1: ntAddr = 0x0400 | (ntAddr & 0x03FF); break;
-            case 2: ntAddr &= 0x07FF; break;
-            case 3: ntAddr = ((ntAddr & 0x0800) >> 1) | (ntAddr & 0x03FF); break;
+            case 0: mode = MirrorMode::SingleScreenLower; break;
+            case 1: mode = MirrorMode::SingleScreenUpper; break;
+            case 2: mode = MirrorMode::Vertical; break;
+            case 3: mode = MirrorMode::Horizontal; break;
+            default: mode = MirrorMode::Vertical; break;
         }
-        ppuVram[ntAddr % 2048] = val;
+        ppuVram[getMirrorAddr(addr, mode) % 2048] = val;
     }
 }
 
@@ -277,7 +271,7 @@ void Mapper7::reset() {
 uint8_t Mapper7::cpuRead(uint16_t addr) {
     if (addr >= 0x8000) {
         int bank = prgBank & prgBankMask;
-        return rom->prgROM[bank * 32768 + (addr & 0x7FFF)];
+        return rom->safePrgRead((uint32_t)bank * 32768 + (addr & 0x7FFF));
     }
     return 0;
 }
@@ -291,15 +285,17 @@ void Mapper7::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
 }
 
 uint8_t Mapper7::ppuRead(uint16_t addr) {
-    if (addr < 0x2000) return rom->chrROM[addr];
-    uint16_t ntAddr = (mirroring ? 0x0400 : 0x0000) | (addr & 0x03FF);
-    return ppuVram[ntAddr % 2048];
+    if (addr < 0x2000) return rom->safeChrRead(addr);
+    MirrorMode mode = mirroring ? MirrorMode::SingleScreenUpper : MirrorMode::SingleScreenLower;
+    return ppuVram[getMirrorAddr(addr, mode) % 2048];
 }
 
 void Mapper7::ppuWrite(uint16_t addr, uint8_t val) {
-    if (addr < 0x2000) rom->chrROM[addr] = val;
-    else {
-        uint16_t ntAddr = (mirroring ? 0x0400 : 0x0000) | (addr & 0x03FF);
-        ppuVram[ntAddr % 2048] = val;
+    if (addr < 0x2000) {
+        if (addr < rom->chrROM.size()) rom->chrROM[addr] = val;
+    }
+    else if (addr >= 0x2000 && addr <= 0x3EFF) {
+        MirrorMode mode = mirroring ? MirrorMode::SingleScreenUpper : MirrorMode::SingleScreenLower;
+        ppuVram[getMirrorAddr(addr, mode) % 2048] = val;
     }
 }

@@ -1,0 +1,84 @@
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:processDebugJavaRes NO-SOURCE
+> Task :app:mergeDebugJavaResource UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:dexBuilderDebug UP-TO-DATE
+> Task :app:mergeProjectDexDebug UP-TO-DATE
+> Task :app:configureCMakeDebug[arm64-v8a]
+
+> Task :app:buildCMakeDebug[arm64-v8a] FAILED
+C/C++: ninja: Entering directory `/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/arm64-v8a'
+C/C++: /home/Lucas/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android21 --sysroot=/home/Lucas/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Dneso_EXPORTS  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC -MD -MT CMakeFiles/neso.dir/jni_bridge.cpp.o -MF CMakeFiles/neso.dir/jni_bridge.cpp.o.d -o CMakeFiles/neso.dir/jni_bridge.cpp.o -c /home/Lucas/Neso/app/src/main/cpp/jni_bridge.cpp
+C/C++: In file included from /home/Lucas/Neso/app/src/main/cpp/jni_bridge.cpp:6:
+C/C++: /home/Lucas/Neso/app/src/main/cpp/mapper.h:67:10: warning: 'reset' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+C/C++:    67 |     void reset();
+C/C++:       |          ^
+C/C++: /home/Lucas/Neso/app/src/main/cpp/mapper.h:16:18: note: overridden virtual function is here
+C/C++:    16 |     virtual void reset() {}
+C/C++:       |                  ^
+C/C++: /home/Lucas/Neso/app/src/main/cpp/jni_bridge.cpp:119:9: error: use of undeclared identifier 'lastPC'
+C/C++:   119 |         lastPC = cpuGlobal->pc;
+C/C++:       |         ^
+C/C++: 1 warning and 1 error generated.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:buildCMakeDebug[arm64-v8a]'.
+> com.android.ide.common.process.ProcessException: ninja: Entering directory `/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/arm64-v8a'
+  [1/2] Building CXX object CMakeFiles/neso.dir/jni_bridge.cpp.o
+  FAILED: CMakeFiles/neso.dir/jni_bridge.cpp.o 
+  /home/Lucas/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android21 --sysroot=/home/Lucas/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Dneso_EXPORTS  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC -MD -MT CMakeFiles/neso.dir/jni_bridge.cpp.o -MF CMakeFiles/neso.dir/jni_bridge.cpp.o.d -o CMakeFiles/neso.dir/jni_bridge.cpp.o -c /home/Lucas/Neso/app/src/main/cpp/jni_bridge.cpp
+  In file included from /home/Lucas/Neso/app/src/main/cpp/jni_bridge.cpp:6:
+  /home/Lucas/Neso/app/src/main/cpp/mapper.h:67:10: warning: 'reset' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+     67 |     void reset();
+        |          ^
+  /home/Lucas/Neso/app/src/main/cpp/mapper.h:16:18: note: overridden virtual function is here
+     16 |     virtual void reset() {}
+        |                  ^
+  /home/Lucas/Neso/app/src/main/cpp/jni_bridge.cpp:119:9: error: use of undeclared identifier 'lastPC'
+    119 |         lastPC = cpuGlobal->pc;
+        |         ^
+  1 warning and 1 error generated.
+  ninja: build stopped: subcommand failed.
+  
+  C++ build system [build] failed while executing:
+      /home/Lucas/Android/cmake/3.22.1/bin/ninja \
+        -C \
+        /home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/arm64-v8a \
+        neso
+    from /home/Lucas/Neso/app
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 16s
+26 actionable tasks: 2 executed, 24 up-to-date

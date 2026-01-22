@@ -2,7 +2,12 @@
 #include "rom.h"
 #include <android/log.h>
 
-// --- Mapper 0 (NROM) ---
+Mapper0::Mapper0(Rom* rom) : Mapper(rom) {
+    reset();
+}
+
+void Mapper0::reset() {}
+
 uint8_t Mapper0::cpuRead(uint16_t addr) {
     if (addr >= 0x8000) {
         uint16_t mask = (rom->getPrgSize() > 16384) ? 0x7FFF : 0x3FFF;
@@ -31,22 +36,35 @@ void Mapper0::ppuWrite(uint16_t addr, uint8_t val) {
     }
 }
 
-// --- Mapper 2 (UxROM) ---
+Mapper2::Mapper2(Rom* rom) : Mapper(rom) {
+    numPrgBanks = rom->getPrgSize() / 16384;
+    // Power of 2 mask for PRG bank selection robustness
+    prgBankMask = numPrgBanks - 1; 
+    reset();
+}
+
+void Mapper2::reset() {
+    prgBankSelect = 0;
+}
+
 uint8_t Mapper2::cpuRead(uint16_t addr) {
     if (addr >= 0x8000 && addr <= 0xBFFF) {
-        // Mask prgBankSelect to fit numBanks
-        int numBanks = rom->getPrgSize() / 16384;
-        uint16_t bank = prgBankSelect % numBanks;
+        // Lower bank: Switchable
+        uint8_t bank = prgBankSelect & prgBankMask;
         return rom->prgROM[bank * 16384 + (addr & 0x3FFF)];
     } else if (addr >= 0xC000) {
-        uint32_t lastBankOffset = rom->getPrgSize() - 16384;
-        return rom->prgROM[lastBankOffset + (addr & 0x3FFF)];
+        // Upper bank: Fixed to last bank
+        int lastBank = numPrgBanks - 1;
+        return rom->prgROM[lastBank * 16384 + (addr & 0x3FFF)];
     }
     return 0;
 }
+
 void Mapper2::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr >= 0x8000) {
-        prgBankSelect = val & 0x7F; // UxROM can have many banks
+        // UxROM uses the lower bits for bank selection. 
+        // Some variants use more bits, 0x7F covers most large games like Contra.
+        prgBankSelect = val; 
     }
 }
 uint8_t Mapper2::ppuRead(uint16_t addr) {
@@ -78,6 +96,14 @@ uint8_t Mapper3::cpuRead(uint16_t addr) {
     }
     return 0;
 }
+Mapper3::Mapper3(Rom* rom) : Mapper(rom) {
+    reset();
+}
+
+void Mapper3::reset() {
+    chrBankSelect = 0;
+}
+
 void Mapper3::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr >= 0x8000) chrBankSelect = val & 0x03;
 }
@@ -215,6 +241,15 @@ uint8_t Mapper7::cpuRead(uint16_t addr) {
         return rom->prgROM[bank * 32768 + (addr & 0x7FFF)];
     }
     return 0;
+}
+
+Mapper7::Mapper7(Rom* rom) : Mapper(rom) {
+    reset();
+}
+
+void Mapper7::reset() {
+    prgBank = 0;
+    mirroring = 0;
 }
 
 void Mapper7::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {

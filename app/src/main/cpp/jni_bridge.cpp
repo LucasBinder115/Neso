@@ -83,13 +83,9 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
         // Using static counter to log every 60 frames (1 sec) to be even lighter? 
         // User asked for "Heartbeat", 60Hz is fine for debugging "stuck" state.
         
+        /*
         static int frameCounter = 0;
         frameCounter++;
-        
-        // Log every frame for now to catch the crash/hang immediately, 
-        // or every 60 frames if we want to monitor long term.
-        // Let's do every 60 frames (1 second) to be super safe against lag, 
-        // BUT also if PC is suspicious (e.g. 0x0000 or same as last time).
         
         if (frameCounter % 60 == 0) {
             LOGD("💓 Heartbeat #%d: PC=%04X SP=%02X Scan=%d Cyc=%d VRAM=%04X Pal[0]=%02X Spr0Hit=%d Spr0Y=%d", 
@@ -99,6 +95,7 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
 
         static uint16_t lastPC = 0;
         static int stagnantFrames = 0;
+        */
     
         int cyclesThisFrame = 0;
         while (cyclesThisFrame < 29780) { // Authentic NTSC (approx)
@@ -118,8 +115,9 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
         if (cpuGlobal->pc == lastPC) {
              // ...
         }
-        */
+        /*
         lastPC = cpuGlobal->pc;
+        */
     }
 
 JNIEXPORT void JNICALL

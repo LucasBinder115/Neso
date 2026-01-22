@@ -58,7 +58,7 @@ private:
 
 class Mapper1 : public Mapper { // MMC1
 public:
-    Mapper1(Rom* rom) : Mapper(rom) { reset(); }
+    Mapper1(Rom* rom);
     uint8_t cpuRead(uint16_t addr) override;
     void cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) override;
     uint8_t ppuRead(uint16_t addr) override;
@@ -74,6 +74,8 @@ public:
     uint32_t prgOffsets[2] = {0};
     uint32_t chrOffsets[2] = {0};
     uint64_t lastWriteCycle = 0;
+    int numPrgBanks = 0;
+    int numChrBanks = 0;
 };
 
 class Mapper7 : public Mapper { // AOROM
@@ -87,6 +89,8 @@ public:
 private:
     uint8_t prgBank = 0;
     uint8_t mirroring = 0; // 0=screenA, 1=screenB
+    int numPrgBanks = 0;
+    int prgBankMask = 0;
 };
 
 #endif

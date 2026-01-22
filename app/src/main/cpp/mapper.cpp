@@ -136,24 +136,31 @@ void Mapper1::reset() {
     updateOffsets();
 }
 
+Mapper1::Mapper1(Rom* rom) : Mapper(rom) {
+    numPrgBanks = rom->getPrgSize() / 16384;
+    numChrBanks = rom->getChrSize() / 4096;
+    reset();
+}
+
 void Mapper1::updateOffsets() {
     // CHR Banks
-    if (control & 0x10) { // 4KB mode
-        chrOffsets[0] = chrBank0 * 4096;
-        chrOffsets[1] = chrBank1 * 4096;
-    } else { // 8KB mode
-        chrOffsets[0] = (chrBank0 & 0xFE) * 4096;
-        chrOffsets[1] = chrOffsets[0] + 4096;
+    if (numChrBanks > 0) {
+        if (control & 0x10) { // 4KB mode
+            chrOffsets[0] = (chrBank0 % numChrBanks) * 4096;
+            chrOffsets[1] = (chrBank1 % numChrBanks) * 4096;
+        } else { // 8KB mode
+            chrOffsets[0] = ((chrBank0 & 0xFE) % numChrBanks) * 4096;
+            chrOffsets[1] = ((chrBank0 | 0x01) % numChrBanks) * 4096;
+        }
     }
 
     // PRG Banks
-    int numPrgBanks = rom->getPrgSize() / 16384;
     if (numPrgBanks == 0) return;
     uint8_t mode = (control >> 2) & 0x03;
     switch (mode) {
         case 0: case 1: // 32KB mode
-            prgOffsets[0] = (prgBank & 0xFE) * 16384;
-            prgOffsets[1] = prgOffsets[0] + 16384;
+            prgOffsets[0] = ((prgBank & 0xFE) % numPrgBanks) * 16384;
+            prgOffsets[1] = ((prgBank | 0x01) % numPrgBanks) * 16384;
             break;
         case 2: // Fix first, switch last
             prgOffsets[0] = 0;
@@ -177,24 +184,38 @@ uint8_t Mapper1::cpuRead(uint16_t addr) {
 void Mapper1::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr < 0x8000) return;
 
-    // Consecutive write suppression (MMC1 behavior)
+    // Consecutive write suppression: MMC1 ignores writes on consecutive CPU cycles.
     if (cycles - lastWriteCycle < 2) return; 
     lastWriteCycle = cycles;
 
     if (val & 0x80) {
+        // Reset shift register and set control bits
         shiftReg = 0x10;
         control |= 0x0C;
         updateOffsets();
     } else {
+        // Load bit into shift register
         bool complete = (shiftReg & 1);
         shiftReg >>= 1;
         shiftReg |= (val & 1) << 4;
+
         if (complete) {
             uint8_t data = shiftReg;
-            if (addr <= 0x9FFF) control = data;
-            else if (addr <= 0xBFFF) chrBank0 = data;
-            else if (addr <= 0xDFFF) chrBank1 = data;
-            else prgBank = data & 0x1F;
+            // Write to internal registers based on address
+            if (addr <= 0x9FFF) {
+                control = data;
+                // Note: bit 0-1 of control register handle mirroring
+            } else if (addr <= 0xBFFF) {
+                chrBank0 = data;
+            } else if (addr <= 0xDFFF) {
+                chrBank1 = data;
+            } else {
+                prgBank = data & 0x0F; // Only lower 4 bits for PRG bank
+                // Bit 4 of prgBank is used for PRG RAM disable on some boards, 
+                // but usually data & 0x1F is fine for higher bank counts.
+                // Let's use 0x1F to support larger MMC1 games (512KB).
+                prgBank = data & 0x1F;
+            }
             updateOffsets();
             shiftReg = 0x10;
         }
@@ -235,15 +256,9 @@ void Mapper1::ppuWrite(uint16_t addr, uint8_t val) {
 }
 
 // --- Mapper 7 (AOROM) ---
-uint8_t Mapper7::cpuRead(uint16_t addr) {
-    if (addr >= 0x8000) {
-        int bank = prgBank % (rom->getPrgSize() / 32768);
-        return rom->prgROM[bank * 32768 + (addr & 0x7FFF)];
-    }
-    return 0;
-}
-
 Mapper7::Mapper7(Rom* rom) : Mapper(rom) {
+    numPrgBanks = rom->getPrgSize() / 32768;
+    prgBankMask = numPrgBanks - 1;
     reset();
 }
 
@@ -252,9 +267,18 @@ void Mapper7::reset() {
     mirroring = 0;
 }
 
+uint8_t Mapper7::cpuRead(uint16_t addr) {
+    if (addr >= 0x8000) {
+        int bank = prgBank & prgBankMask;
+        return rom->prgROM[bank * 32768 + (addr & 0x7FFF)];
+    }
+    return 0;
+}
+
 void Mapper7::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr >= 0x8000) {
-        prgBank = val & 0x0F;
+        prgBank = val & 0x07; // Usually 3 bits are enough for 256KB games
+        // Bit 4 selects nametable for Single-Screen mirroring
         mirroring = (val >> 4) & 1;
     }
 }

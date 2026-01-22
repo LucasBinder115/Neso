@@ -145,9 +145,137 @@ struct SquareChannel {
     }
 };
 
+struct TriangleChannel {
+    uint16_t timerPeriod = 0;
+    uint16_t timerValue = 0;
+    uint8_t lengthCounter = 0;
+    uint8_t linearCounter = 0;
+    uint8_t linearCounterReload = 0;
+    bool linearCounterReloadFlag = false;
+    bool lengthEnabled = true;
+    bool controlFlag = false; // Also used for length counter halt
+    uint8_t step = 0;
+    bool enabled = false;
+
+    static const uint8_t TRIANGLE_STEPS[32];
+    static const uint8_t LENGTH_TABLE[32];
+
+    void clockTimer() {
+        if (enabled && timerPeriod >= 2) {
+            if (timerValue == 0) {
+                timerValue = timerPeriod;
+                if (lengthCounter > 0 && linearCounter > 0) {
+                    step = (step + 1) & 0x1F;
+                }
+            } else {
+                timerValue--;
+            }
+        }
+    }
+
+    void clockLinear() {
+        if (linearCounterReloadFlag) {
+            linearCounter = linearCounterReload;
+        } else if (linearCounter > 0) {
+            linearCounter--;
+        }
+        if (!controlFlag) {
+            linearCounterReloadFlag = false;
+        }
+    }
+
+    void clockLength() {
+        if (lengthCounter > 0 && !controlFlag) {
+            lengthCounter--;
+        }
+    }
+
+    uint8_t getOutput() {
+        if (!enabled || lengthCounter == 0 || linearCounter == 0) return 0;
+        return TRIANGLE_STEPS[step];
+    }
+};
+
+struct NoiseChannel {
+    uint16_t timerPeriod = 0;
+    uint16_t timerValue = 0;
+    uint16_t shiftRegister = 1;
+    bool mode = false;
+    
+    // Envelope
+    uint8_t envelopeDivider = 0;
+    uint8_t envelopeCounter = 0;
+    uint8_t envelopeVolume = 0;
+    bool envelopeStart = false;
+    bool envelopeLoop = false;
+    bool constantVolume = false;
+    uint8_t constantVolumeValue = 0;
+    
+    uint8_t lengthCounter = 0;
+    bool enabled = false;
+
+    static const uint16_t PERIOD_TABLE[16];
+    static const uint8_t LENGTH_TABLE[32];
+
+    void clockTimer() {
+        if (timerValue == 0) {
+            timerValue = timerPeriod;
+            uint16_t feedback = (shiftRegister & 1) ^ ((mode ? (shiftRegister >> 6) : (shiftRegister >> 1)) & 1);
+            shiftRegister = (shiftRegister >> 1) | (feedback << 14);
+        } else {
+            timerValue--;
+        }
+    }
+
+    void clockEnvelope() {
+        if (envelopeStart) {
+            envelopeStart = false;
+            envelopeVolume = 15;
+            envelopeDivider = constantVolumeValue;
+        } else if (envelopeDivider > 0) {
+            envelopeDivider--;
+        } else {
+            envelopeDivider = constantVolumeValue;
+            if (envelopeVolume > 0) {
+                envelopeVolume--;
+            } else if (envelopeLoop) {
+                envelopeVolume = 15;
+            }
+        }
+    }
+
+    void clockLength() {
+        if (lengthCounter > 0 && !envelopeLoop) {
+            lengthCounter--;
+        }
+    }
+
+    uint8_t getOutput() {
+        if (!enabled || lengthCounter == 0 || (shiftRegister & 1)) return 0;
+        return constantVolume ? constantVolumeValue : envelopeVolume;
+    }
+};
+
+struct DMCChannel {
+    bool enabled = false;
+    // Basic structure, to be expanded if needed
+    uint8_t outputLevel = 0;
+
+    void clock() {
+        // Placeholder for samples
+    }
+
+    uint8_t getOutput() {
+        return outputLevel;
+    }
+};
+
 struct APU {
     SquareChannel square1;
     SquareChannel square2;
+    TriangleChannel triangle;
+    NoiseChannel noise;
+    DMCChannel dmc;
     AudioRingBuffer ringBuffer;
     
     // Timing

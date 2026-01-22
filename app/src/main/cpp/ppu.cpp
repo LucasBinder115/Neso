@@ -157,47 +157,42 @@ void PPU::step(int cpuCycles, CPU* cpu) {
             // if (cycle >= 65 && cycle <= 256) { ... } logic removed.
             
             // Cycle 65: Instant Sprite Evaluation (Cheat for stability)
-            if (cycle == 65) {
+            if (cycle == 65 && scanline < 240) {
                 spriteCount = 0;
                 sprite0InSecondary = false;
-                spriteOverflow = false;
                 
+                int n = 0; 
                 int spriteHeight = (ppuctrl & 0x20) ? 16 : 8;
-                int nextScanline = (scanline == 261) ? 0 : scanline + 1;
 
-                for (int i = 0; i < 64; i++) {
-                     int spriteY = sprites[i].y;
-                // NES Sprites are delayed by one scanline
-                // If OAM Y = 24, sprite appears on scanline 25.
-                // My logic: scanline is 0-239.
-                // So effective Y is spriteY + 1.
-                // diff = scanline - (spriteY + 1);
-                // BUT wait, convention usually says Y is the line BEFORE.
-                // Let's try matching the standard:
-                
-                int diff = scanline - spriteY; 
-                if (diff < 0 || diff >= ((ppuctrl & 0x20) ? 16 : 8)) continue;
-                // Actually, let's keep the logic simple for now. 
-                // If it's 1 pixel off, we can adjust later or check if 'diff' calculation was naive.
-                // If I render at Y, and it should be Y+1.
-                // Let's try scanline - spriteY - 1 logic IF the user reports visual misalignment.
-                // But for HIT detection, the overlap is key.
-                
-                // Let's try the Simplified Hit Check FIRST.
-                if (diff >= 0 && diff < spriteHeight) {
-                         if (spriteCount < 8) {
-                             int secIdx = spriteCount * 4;
-                             secondaryOAM[secIdx + 0] = sprites[i].y;
-                             secondaryOAM[secIdx + 1] = sprites[i].tile_index;
-                             secondaryOAM[secIdx + 2] = sprites[i].attributes;
-                             secondaryOAM[secIdx + 3] = sprites[i].x;
-                             if (i == 0) sprite0InSecondary = true;
-                             spriteCount++;
-                         } else {
-                             spriteOverflow = true;
-                             ppustatus |= 0x20; // Set Sprite Overflow flag
-                         }
-                     }
+                // 1. Find the first 8 sprites on this scanline
+                while (n < 64 && spriteCount < 8) {
+                    int y = sprites[n].y;
+                    int diff = scanline - y;
+                    if (diff >= 0 && diff < spriteHeight) {
+                        int secIdx = spriteCount * 4;
+                        secondaryOAM[secIdx + 0] = sprites[n].y;
+                        secondaryOAM[secIdx + 1] = sprites[n].tile_index;
+                        secondaryOAM[secIdx + 2] = sprites[n].attributes;
+                        secondaryOAM[secIdx + 3] = sprites[n].x;
+                        if (n == 0) sprite0InSecondary = true;
+                        spriteCount++;
+                    }
+                    n++;
+                }
+
+                // 2. Sprite Overflow Hardware Bug
+                // Continue scanning for a 9th sprite, but with the m-counter increment bug
+                int m = 0;
+                while (n < 64) {
+                    int y = ((uint8_t*)sprites)[n * 4 + m];
+                    int diff = scanline - y;
+                    if (diff >= 0 && diff < spriteHeight) {
+                        ppustatus |= 0x20; // Set Overflow flag
+                        break;
+                    } else {
+                        n++;
+                        m = (m + 1) & 0x03; // Hardware bug: increments both n and m
+                    }
                 }
             }
         }

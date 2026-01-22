@@ -96,7 +96,10 @@ uint8_t Mapper3::cpuRead(uint16_t addr) {
     }
     return 0;
 }
+
 Mapper3::Mapper3(Rom* rom) : Mapper(rom) {
+    numChrBanks = rom->getChrSize() / 8192;
+    chrBankMask = numChrBanks - 1;
     reset();
 }
 
@@ -105,10 +108,14 @@ void Mapper3::reset() {
 }
 
 void Mapper3::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
-    if (addr >= 0x8000) chrBankSelect = val & 0x03;
+    if (addr >= 0x8000) chrBankSelect = val;
 }
+
 uint8_t Mapper3::ppuRead(uint16_t addr) {
-    if (addr < 0x2000) return rom->chrROM[chrBankSelect * 8192 + addr];
+    if (addr < 0x2000) {
+        int bank = chrBankSelect & chrBankMask;
+        return rom->chrROM[bank * 8192 + addr];
+    }
     if (addr >= 0x2000 && addr <= 0x3EFF) {
         uint16_t ntAddr = addr & 0x0FFF;
         if (rom->isVerticalMirroring()) ntAddr &= 0x07FF;

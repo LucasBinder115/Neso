@@ -54,6 +54,8 @@ public:
     void reset() override;
 private:
     uint8_t chrBankSelect = 0;
+    int numChrBanks = 0;
+    int chrBankMask = 0;
 };
 
 class Mapper1 : public Mapper { // MMC1

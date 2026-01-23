@@ -13,9 +13,11 @@ uint8_t Mapper0::cpuRead(uint16_t addr) {
         uint16_t mask = (rom->getPrgSize() > 16384) ? 0x7FFF : 0x3FFF;
         return rom->prgROM[addr & mask];
     }
-    return 0;
+    return Mapper::cpuRead(addr);
 }
-void Mapper0::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {}
+void Mapper0::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
+    Mapper::cpuWrite(addr, val, cycles);
+}
 uint8_t Mapper0::ppuRead(uint16_t addr) {
     if (addr < 0x2000) return rom->safeChrRead(addr);
     if (addr >= 0x2000 && addr <= 0x3EFF) {
@@ -55,14 +57,14 @@ uint8_t Mapper2::cpuRead(uint16_t addr) {
         int lastBank = numPrgBanks - 1;
         return rom->safePrgRead((uint32_t)lastBank * 16384 + (addr & 0x3FFF));
     }
-    return 0;
+    return Mapper::cpuRead(addr);
 }
 
 void Mapper2::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr >= 0x8000) {
-        // UxROM uses the lower bits for bank selection. 
-        // Some variants use more bits, 0x7F covers most large games like Contra.
         prgBankSelect = val; 
+    } else {
+        Mapper::cpuWrite(addr, val, cycles);
     }
 }
 uint8_t Mapper2::ppuRead(uint16_t addr) {
@@ -103,6 +105,7 @@ void Mapper3::reset() {
 
 void Mapper3::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
     if (addr >= 0x8000) chrBankSelect = val;
+    else Mapper::cpuWrite(addr, val, cycles);
 }
 
 uint8_t Mapper3::ppuRead(uint16_t addr) {
@@ -177,11 +180,14 @@ uint8_t Mapper1::cpuRead(uint16_t addr) {
         int idx = (addr >= 0xC000);
         return rom->safePrgRead(prgOffsets[idx] + (addr & 0x3FFF));
     }
-    return 0;
+    return Mapper::cpuRead(addr);
 }
 
 void Mapper1::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
-    if (addr < 0x8000) return;
+    if (addr < 0x8000) {
+        Mapper::cpuWrite(addr, val, cycles);
+        return;
+    }
 
     // Consecutive write suppression: MMC1 ignores writes on consecutive CPU cycles.
     if (cycles - lastWriteCycle < 2) return; 
@@ -273,7 +279,7 @@ uint8_t Mapper7::cpuRead(uint16_t addr) {
         int bank = prgBank & prgBankMask;
         return rom->safePrgRead((uint32_t)bank * 32768 + (addr & 0x7FFF));
     }
-    return 0;
+    return Mapper::cpuRead(addr);
 }
 
 void Mapper7::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
@@ -281,6 +287,8 @@ void Mapper7::cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
         prgBank = val & 0x07; // Usually 3 bits are enough for 256KB games
         // Bit 4 selects nametable for Single-Screen mirroring
         mirroring = (val >> 4) & 1;
+    } else {
+        Mapper::cpuWrite(addr, val, cycles);
     }
 }
 

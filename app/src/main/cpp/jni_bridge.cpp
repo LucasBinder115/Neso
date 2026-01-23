@@ -16,61 +16,82 @@
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "NesoJNI", __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "NesoJNI", __VA_ARGS__)
 
-static uint32_t screenBuffer[SCREEN_WIDTH * SCREEN_HEIGHT];
-static CPU* cpuGlobal = nullptr;
-static PPU ppuGlobal;
-static APU apuGlobal;
-static Rom* currentRom = nullptr;
-static Mapper* currentMapper = nullptr;
+struct NesoSystem {
+    uint32_t screenBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
+    CPU* cpu = nullptr;
+    PPU ppu;
+    APU apu;
+    Rom* rom = nullptr;
+    Mapper* mapper = nullptr;
+
+    // Telemetry
+    uint16_t lastPC = 0;
+    int stagnantFrames = 0;
+    int frameCounter = 0;
+
+    ~NesoSystem() {
+        if (cpu) delete cpu;
+        if (rom) delete rom;
+        if (mapper) delete mapper;
+    }
+};
+
+static NesoSystem* systemGlobal = nullptr;
 
 extern "C" {
 
 JNIEXPORT jlong JNICALL
 Java_com_neso_core_MainActivity_createCpu(JNIEnv* env, jobject thiz) {
-    if (cpuGlobal) delete cpuGlobal;
-    cpuGlobal = new CPU();
-    cpuGlobal->ppu = &ppuGlobal;
-    cpuGlobal->apu = &apuGlobal;
-    cpuGlobal->reset();
-    ppuGlobal.reset();
-    ppuGlobal.pixelBuffer = screenBuffer;
-    apuGlobal.cpu = cpuGlobal;
-    apuGlobal.reset();
-    return (jlong)cpuGlobal;
+    if (systemGlobal) delete systemGlobal;
+    systemGlobal = new NesoSystem();
+    
+    systemGlobal->cpu = new CPU();
+    systemGlobal->cpu->ppu = &systemGlobal->ppu;
+    systemGlobal->cpu->apu = &systemGlobal->apu;
+    systemGlobal->cpu->reset();
+    
+    systemGlobal->ppu.reset();
+    systemGlobal->ppu.pixelBuffer = systemGlobal->screenBuffer;
+    
+    systemGlobal->apu.cpu = systemGlobal->cpu;
+    systemGlobal->apu.reset();
+    
+    return (jlong)systemGlobal->cpu;
 }
 
 JNIEXPORT void JNICALL
 Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray data) {
+    if (!systemGlobal) return;
     jsize len = env->GetArrayLength(data);
     jbyte* buf = env->GetByteArrayElements(data, 0);
 
-    if (currentRom) delete currentRom;
-    if (currentMapper) delete currentMapper;
+    if (systemGlobal->rom) delete systemGlobal->rom;
+    if (systemGlobal->mapper) delete systemGlobal->mapper;
 
-    currentRom = new Rom((uint8_t*)buf, (size_t)len);
-    if (currentRom->isValid()) {
-        int mapperId = currentRom->getMapperId();
-        if (mapperId == 0) currentMapper = new Mapper0(currentRom);
-        else if (mapperId == 1) currentMapper = new Mapper1(currentRom);
-        else if (mapperId == 2) currentMapper = new Mapper2(currentRom);
-        else if (mapperId == 3) currentMapper = new Mapper3(currentRom);
-        else if (mapperId == 7) currentMapper = new Mapper7(currentRom);
+    systemGlobal->rom = new Rom((uint8_t*)buf, (size_t)len);
+    if (systemGlobal->rom->isValid()) {
+        int mapperId = systemGlobal->rom->getMapperId();
+        if (mapperId == 0) systemGlobal->mapper = new Mapper0(systemGlobal->rom);
+        else if (mapperId == 1) systemGlobal->mapper = new Mapper1(systemGlobal->rom);
+        else if (mapperId == 2) systemGlobal->mapper = new Mapper2(systemGlobal->rom);
+        else if (mapperId == 3) systemGlobal->mapper = new Mapper3(systemGlobal->rom);
+        else if (mapperId == 7) systemGlobal->mapper = new Mapper7(systemGlobal->rom);
         else {
             LOGD("Unsupported Mapper: %d - Defaulting to Mapper 0", mapperId);
-            currentMapper = new Mapper0(currentRom);
+            systemGlobal->mapper = new Mapper0(systemGlobal->rom);
         }
-        cpuGlobal->mapper = currentMapper;
-        ppuGlobal.mapper = currentMapper;
+        systemGlobal->cpu->mapper = systemGlobal->mapper;
+        systemGlobal->ppu.mapper = systemGlobal->mapper;
         LOGD("Mapper %d initialized, resetting CPU...", mapperId);
-        cpuGlobal->reset();
+        systemGlobal->cpu->reset();
         
         // --- Vector Verification ---
-        uint8_t lo = cpuGlobal->read(0xFFFC);
-        uint8_t hi = cpuGlobal->read(0xFFFD);
+        uint8_t lo = systemGlobal->cpu->read(0xFFFC);
+        uint8_t hi = systemGlobal->cpu->read(0xFFFD);
         uint16_t resetVec = lo | (hi << 8);
         
-        lo = cpuGlobal->read(0xFFFA);
-        hi = cpuGlobal->read(0xFFFB);
+        lo = systemGlobal->cpu->read(0xFFFA);
+        hi = systemGlobal->cpu->read(0xFFFB);
         uint16_t nmiVec = lo | (hi << 8);
         
         LOGD("PRG-ROM Loaded. Reset Vector: 0x%04X, NMI Vector: 0x%04X", resetVec, nmiVec);
@@ -83,61 +104,58 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
 
     JNIEXPORT void JNICALL
     Java_com_neso_core_MainActivity_stepCpu(JNIEnv* env, jobject thiz, jlong ptr) {
-        if (!cpuGlobal || !cpuGlobal->mapper) return;
+        if (!systemGlobal || !systemGlobal->cpu || !systemGlobal->mapper) return;
         
         // --- Core Execution Loop ---
         int cyclesThisFrame = 0;
         while (cyclesThisFrame < 29780) { // Authentic NTSC cycles per frame
-            int cycles = cpuGlobal->step();
-            ppuGlobal.step(cycles, cpuGlobal);
-            apuGlobal.step(cycles);
+            int cycles = systemGlobal->cpu->step();
+            systemGlobal->ppu.step(cycles, systemGlobal->cpu);
+            systemGlobal->apu.step(cycles);
             
-            if (ppuGlobal.nmiOccurred) {
-                cpuGlobal->triggerNMI();
-                ppuGlobal.nmiOccurred = false;
-            } else if (cpuGlobal->irqPending) {
-                cpuGlobal->triggerIRQ();
+            if (systemGlobal->ppu.nmiOccurred) {
+                systemGlobal->cpu->triggerNMI();
+                systemGlobal->ppu.nmiOccurred = false;
+            } else if (systemGlobal->cpu->irqPending) {
+                systemGlobal->cpu->triggerIRQ();
             }
             cyclesThisFrame += cycles;
         }
 
         // --- Production Telemetry (Phase 20) ---
-        static uint16_t lastPC = 0;
-        static int stagnantFrames = 0;
-        static int frameCounter = 0;
-        frameCounter++;
+        systemGlobal->frameCounter++;
 
-        if (cpuGlobal->pc == lastPC) {
-            stagnantFrames++;
+        if (systemGlobal->cpu->pc == systemGlobal->lastPC) {
+            systemGlobal->stagnantFrames++;
         } else {
-            stagnantFrames = 0;
-            lastPC = cpuGlobal->pc;
+            systemGlobal->stagnantFrames = 0;
+            systemGlobal->lastPC = systemGlobal->cpu->pc;
         }
 
-        // Log Heartbeat every 300 frames (~5 seconds)
-        // Helps identify "Hangs" during wide compatibility testing
-        if (frameCounter % 300 == 0) {
-            LOGD("💓 Heartbeat: PC=%04X Sl=%d Cyc=%d Stagnant=%d", 
-                 cpuGlobal->pc, ppuGlobal.scanline, ppuGlobal.cycle, stagnantFrames);
+        if (systemGlobal->frameCounter % 300 == 0) {
+            LOGD("💓 Heartbeat: PC=%04X Sl=%d Cyc=%d Stagnant=%d Audit=%08X", 
+                 systemGlobal->cpu->pc, systemGlobal->ppu.scanline, systemGlobal->ppu.cycle, 
+                 systemGlobal->stagnantFrames, systemGlobal->cpu->getChecksum());
             
-            if (stagnantFrames > 300) { 
-                LOGW("⚠️ WARNING: CPU might be stuck! PC=0x%04X", cpuGlobal->pc);
+            if (systemGlobal->stagnantFrames > 300) { 
+                LOGW("⚠️ WARNING: CPU might be stuck! PC=0x%04X", systemGlobal->cpu->pc);
             }
         }
     }
 JNIEXPORT void JNICALL
 Java_com_neso_core_MainActivity_renderFrame(JNIEnv* env, jobject thiz, jintArray output) {
-    if (!output) return;
-    env->SetIntArrayRegion(output, 0, SCREEN_WIDTH * SCREEN_HEIGHT, (const jint*)screenBuffer);
+    if (!output || !systemGlobal) return;
+    env->SetIntArrayRegion(output, 0, SCREEN_WIDTH * SCREEN_HEIGHT, (const jint*)systemGlobal->screenBuffer);
 }
 
 JNIEXPORT jint JNICALL
 Java_com_neso_core_MainActivity_getAudioSamples(JNIEnv* env, jobject thiz, jbyteArray out) {
+    if (!systemGlobal) return 0;
     jsize len = env->GetArrayLength(out);
     static uint8_t temp[AudioRingBuffer::SIZE];
     if (len > AudioRingBuffer::SIZE) len = AudioRingBuffer::SIZE;
     
-    int read = apuGlobal.ringBuffer.read(temp, (int)len);
+    int read = systemGlobal->apu.ringBuffer.read(temp, (int)len);
     if (read > 0) {
         env->SetByteArrayRegion(out, 0, read, (const jbyte*)temp);
     }
@@ -148,10 +166,10 @@ Java_com_neso_core_MainActivity_getAudioSamples(JNIEnv* env, jobject thiz, jbyte
     static uint32_t lastGenCount = 0;
     totalRead += read;
     if (++counter % 300 == 0) {
-        uint32_t genDelta = apuGlobal.totalSamplesGenerated - lastGenCount;
+        uint32_t genDelta = systemGlobal->apu.totalSamplesGenerated - lastGenCount;
         LOGD("Audio Buffer: %d%% | Gen: %u | Cons: %d (per 300 calls)", 
-             apuGlobal.ringBuffer.getLevelPct(), genDelta, totalRead);
-        lastGenCount = apuGlobal.totalSamplesGenerated;
+             systemGlobal->apu.ringBuffer.getLevelPct(), genDelta, totalRead);
+        lastGenCount = systemGlobal->apu.totalSamplesGenerated;
         totalRead = 0;
     }
     
@@ -160,16 +178,17 @@ Java_com_neso_core_MainActivity_getAudioSamples(JNIEnv* env, jobject thiz, jbyte
 
 JNIEXPORT jint JNICALL
 Java_com_neso_core_MainActivity_getAudioBufferLevel(JNIEnv* env, jobject thiz) {
-    return apuGlobal.ringBuffer.getLevelPct();
+    if (!systemGlobal) return 0;
+    return systemGlobal->apu.ringBuffer.getLevelPct();
 }
 
 JNIEXPORT void JNICALL
 Java_com_neso_core_MainActivity_setButtonState(JNIEnv* env, jobject thiz, jint button, jboolean pressed) {
-    if (cpuGlobal) {
+    if (systemGlobal && systemGlobal->cpu) {
         if (pressed) {
-            cpuGlobal->controller.buttons |= (1 << button);
+            systemGlobal->cpu->controller.buttons |= (1 << button);
         } else {
-            cpuGlobal->controller.buttons &= ~(1 << button);
+            systemGlobal->cpu->controller.buttons &= ~(1 << button);
         }
     }
 }

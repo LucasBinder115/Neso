@@ -6,7 +6,6 @@
 #include <android/log.h>
 
 #define LOG_TAG "NesoCore"
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 
 // read, write, and setZN are now defined as inline in cpu.h
 
@@ -17,7 +16,7 @@ void CPU::reset() {
     cyclesToStall = 0;
     totalCycles = 0;
     pc = read16(0xFFFC);
-    LOGD("CPU RESET! PC: 0x%04X", pc);
+    NESO_LOGD("CPU RESET! PC: 0x%04X", pc);
 }
 
 // setZN is now inline in cpu.h
@@ -25,7 +24,6 @@ void CPU::reset() {
 int CPU::step() {
     if (cyclesToStall > 0) { cyclesToStall--; return 1; }
 
-    uint16_t curPC = pc;
     uint8_t opcode = read(pc++);
     int cycles = 2;
 
@@ -275,6 +273,22 @@ int CPU::step() {
     if (apu) apu->step(cycles);
     totalCycles += cycles;
     return cycles;
+}
+
+uint32_t CPU::getChecksum() {
+    uint32_t hash = 0x811c9dc5;
+    auto add8 = [&](uint8_t data) {
+        hash ^= data;
+        hash *= 0x01000193; // FNV-1a
+    };
+    
+    add8(a); add8(x); add8(y); add8(sp); add8(status);
+    add8((uint8_t)(pc & 0xFF)); add8((uint8_t)(pc >> 8));
+    
+    // Hash Zero Page
+    for (int i = 0; i < 256; i++) add8(ram[i]);
+    
+    return hash;
 }
 
 void CPU::triggerIRQ() {

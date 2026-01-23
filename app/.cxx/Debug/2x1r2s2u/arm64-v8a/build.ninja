@@ -11,7 +11,7 @@
 # =============================================================================
 
 # =============================================================================
-# Project: Project
+# Project: Neso
 # Configurations: Debug
 # =============================================================================
 
@@ -52,49 +52,49 @@ build cmake_object_order_depends_target_neso: phony || CMakeFiles/neso.dir
 build CMakeFiles/neso.dir/cpu.cpp.o: CXX_COMPILER__neso_Debug /home/Lucas/Neso/app/src/main/cpp/cpu.cpp || cmake_object_order_depends_target_neso
   DEFINES = -Dneso_EXPORTS
   DEP_FILE = CMakeFiles/neso.dir/cpu.cpp.o.d
-  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC
+  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -Wall -Wextra -Werror -Wno-unused-parameter -Wshadow -fno-limit-debug-info  -O3 -g -fPIC
   OBJECT_DIR = CMakeFiles/neso.dir
   OBJECT_FILE_DIR = CMakeFiles/neso.dir
 
 build CMakeFiles/neso.dir/ppu.cpp.o: CXX_COMPILER__neso_Debug /home/Lucas/Neso/app/src/main/cpp/ppu.cpp || cmake_object_order_depends_target_neso
   DEFINES = -Dneso_EXPORTS
   DEP_FILE = CMakeFiles/neso.dir/ppu.cpp.o.d
-  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC
+  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -Wall -Wextra -Werror -Wno-unused-parameter -Wshadow -fno-limit-debug-info  -O3 -g -fPIC
   OBJECT_DIR = CMakeFiles/neso.dir
   OBJECT_FILE_DIR = CMakeFiles/neso.dir
 
 build CMakeFiles/neso.dir/apu.cpp.o: CXX_COMPILER__neso_Debug /home/Lucas/Neso/app/src/main/cpp/apu.cpp || cmake_object_order_depends_target_neso
   DEFINES = -Dneso_EXPORTS
   DEP_FILE = CMakeFiles/neso.dir/apu.cpp.o.d
-  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC
+  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -Wall -Wextra -Werror -Wno-unused-parameter -Wshadow -fno-limit-debug-info  -O3 -g -fPIC
   OBJECT_DIR = CMakeFiles/neso.dir
   OBJECT_FILE_DIR = CMakeFiles/neso.dir
 
 build CMakeFiles/neso.dir/rom.cpp.o: CXX_COMPILER__neso_Debug /home/Lucas/Neso/app/src/main/cpp/rom.cpp || cmake_object_order_depends_target_neso
   DEFINES = -Dneso_EXPORTS
   DEP_FILE = CMakeFiles/neso.dir/rom.cpp.o.d
-  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC
+  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -Wall -Wextra -Werror -Wno-unused-parameter -Wshadow -fno-limit-debug-info  -O3 -g -fPIC
   OBJECT_DIR = CMakeFiles/neso.dir
   OBJECT_FILE_DIR = CMakeFiles/neso.dir
 
 build CMakeFiles/neso.dir/mapper.cpp.o: CXX_COMPILER__neso_Debug /home/Lucas/Neso/app/src/main/cpp/mapper.cpp || cmake_object_order_depends_target_neso
   DEFINES = -Dneso_EXPORTS
   DEP_FILE = CMakeFiles/neso.dir/mapper.cpp.o.d
-  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC
+  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -Wall -Wextra -Werror -Wno-unused-parameter -Wshadow -fno-limit-debug-info  -O3 -g -fPIC
   OBJECT_DIR = CMakeFiles/neso.dir
   OBJECT_FILE_DIR = CMakeFiles/neso.dir
 
 build CMakeFiles/neso.dir/renderer.cpp.o: CXX_COMPILER__neso_Debug /home/Lucas/Neso/app/src/main/cpp/renderer.cpp || cmake_object_order_depends_target_neso
   DEFINES = -Dneso_EXPORTS
   DEP_FILE = CMakeFiles/neso.dir/renderer.cpp.o.d
-  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC
+  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -Wall -Wextra -Werror -Wno-unused-parameter -Wshadow -fno-limit-debug-info  -O3 -g -fPIC
   OBJECT_DIR = CMakeFiles/neso.dir
   OBJECT_FILE_DIR = CMakeFiles/neso.dir
 
 build CMakeFiles/neso.dir/jni_bridge.cpp.o: CXX_COMPILER__neso_Debug /home/Lucas/Neso/app/src/main/cpp/jni_bridge.cpp || cmake_object_order_depends_target_neso
   DEFINES = -Dneso_EXPORTS
   DEP_FILE = CMakeFiles/neso.dir/jni_bridge.cpp.o.d
-  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC
+  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -Wall -Wextra -Werror -Wno-unused-parameter -Wshadow -fno-limit-debug-info  -O3 -g -fPIC
   OBJECT_DIR = CMakeFiles/neso.dir
   OBJECT_FILE_DIR = CMakeFiles/neso.dir
 
@@ -107,7 +107,7 @@ build CMakeFiles/neso.dir/jni_bridge.cpp.o: CXX_COMPILER__neso_Debug /home/Lucas
 # Link the shared library /home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/arm64-v8a/libneso.so
 
 build /home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/arm64-v8a/libneso.so: CXX_SHARED_LIBRARY_LINKER__neso_Debug CMakeFiles/neso.dir/cpu.cpp.o CMakeFiles/neso.dir/ppu.cpp.o CMakeFiles/neso.dir/apu.cpp.o CMakeFiles/neso.dir/rom.cpp.o CMakeFiles/neso.dir/mapper.cpp.o CMakeFiles/neso.dir/renderer.cpp.o CMakeFiles/neso.dir/jni_bridge.cpp.o
-  LANGUAGE_COMPILE_FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3
+  LANGUAGE_COMPILE_FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -Wall -Wextra -Werror -Wno-unused-parameter -Wshadow -fno-limit-debug-info  -O3 -g
   LINK_FLAGS = -static-libstdc++ -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments
   LINK_LIBRARIES = -landroid  -llog  -latomic -lm
   OBJECT_DIR = CMakeFiles/neso.dir

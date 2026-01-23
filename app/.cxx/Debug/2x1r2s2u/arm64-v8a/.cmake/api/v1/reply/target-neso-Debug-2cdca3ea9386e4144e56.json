@@ -2,7 +2,7 @@
 	"artifacts" : 
 	[
 		{
-			"path" : "/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/x86_64/libneso.so"
+			"path" : "/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/arm64-v8a/libneso.so"
 		}
 	],
 	"backtrace" : 1,
@@ -25,13 +25,13 @@
 			{
 				"command" : 0,
 				"file" : 0,
-				"line" : 8,
+				"line" : 9,
 				"parent" : 0
 			},
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 19,
+				"line" : 20,
 				"parent" : 0
 			}
 		]
@@ -42,7 +42,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "-g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -fno-limit-debug-info  -O3 -fPIC"
+					"fragment" : "-g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O3 -ffast-math -flto -Wall -Wextra -Werror -Wno-unused-parameter -Wshadow -fno-limit-debug-info  -O3 -g -fPIC"
 				}
 			],
 			"defines" : 

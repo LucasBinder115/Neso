@@ -11,7 +11,7 @@
 				}
 			],
 			"type" : "UNINITIALIZED",
-			"value" : "x86_64"
+			"value" : "arm64-v8a"
 		},
 		{
 			"name" : "ANDROID_NDK",
@@ -63,7 +63,7 @@
 				}
 			],
 			"type" : "UNINITIALIZED",
-			"value" : "x86_64"
+			"value" : "arm64-v8a"
 		},
 		{
 			"name" : "CMAKE_ANDROID_NDK",
@@ -151,7 +151,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/x86_64"
+			"value" : "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/arm64-v8a"
 		},
 		{
 			"name" : "CMAKE_CACHE_MAJOR_VERSION",
@@ -707,7 +707,7 @@
 				}
 			],
 			"type" : "UNINITIALIZED",
-			"value" : "/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/x86_64"
+			"value" : "/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/arm64-v8a"
 		},
 		{
 			"name" : "CMAKE_LINKER",
@@ -923,7 +923,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "Project"
+			"value" : "Neso"
 		},
 		{
 			"name" : "CMAKE_RANLIB",
@@ -979,7 +979,7 @@
 				}
 			],
 			"type" : "UNINITIALIZED",
-			"value" : "/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/x86_64"
+			"value" : "/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/arm64-v8a"
 		},
 		{
 			"name" : "CMAKE_SHARED_LINKER_FLAGS",
@@ -1254,6 +1254,42 @@
 			"value" : "FALSE"
 		},
 		{
+			"name" : "Neso_BINARY_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/arm64-v8a"
+		},
+		{
+			"name" : "Neso_IS_TOP_LEVEL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "ON"
+		},
+		{
+			"name" : "Neso_SOURCE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "/home/Lucas/Neso/app/src/main/cpp"
+		},
+		{
 			"name" : "Project_BINARY_DIR",
 			"properties" : 
 			[
@@ -1263,7 +1299,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/x86_64"
+			"value" : "/home/Lucas/Neso/app/.cxx/Debug/2x1r2s2u/arm64-v8a"
 		},
 		{
 			"name" : "Project_IS_TOP_LEVEL",

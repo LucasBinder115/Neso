@@ -22,8 +22,13 @@ public:
     Mapper(Rom* rom) : rom(rom) {}
     virtual ~Mapper() {}
 
-    virtual uint8_t cpuRead(uint16_t addr) = 0;
-    virtual void cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) = 0;
+    virtual uint8_t cpuRead(uint16_t addr) {
+        if (addr >= 0x6000 && addr <= 0x7FFF) return prgRam[addr - 0x6000];
+        return 0;
+    }
+    virtual void cpuWrite(uint16_t addr, uint8_t val, uint64_t cycles) {
+        if (addr >= 0x6000 && addr <= 0x7FFF) prgRam[addr - 0x6000] = val;
+    }
     virtual uint8_t ppuRead(uint16_t addr) = 0;
     virtual void ppuWrite(uint16_t addr, uint8_t val) = 0;
     virtual void reset() {}
@@ -47,6 +52,7 @@ public:
 protected:
     Rom* rom;
     uint8_t ppuVram[2048] = {0}; // 2KB internal Nametable memory
+    uint8_t prgRam[8192] = {0};  // 8KB Work/PRG RAM ($6000-$7FFF)
 };
 
 class Mapper0 : public Mapper {

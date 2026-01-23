@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <android/log.h>
+#define NESO_LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "NesoCore", __VA_ARGS__)
 
 struct PPU;
 struct APU;
@@ -53,6 +54,8 @@ struct CPU {
     bool irqPending = false;
     int cyclesToStall = 0; // For DMA ($4014) handling
     uint64_t totalCycles = 0; // Cumulative cycles for timing
+    
+    uint32_t getChecksum(); // For Determinism (Layer D)
 
     inline void setZN(uint8_t val) {
         status = (status & ~0x82) | (val == 0 ? 0x02 : 0) | (val & 0x80);
@@ -88,7 +91,7 @@ inline uint8_t CPU::read(uint16_t addr) {
     if (addr >= 0x2000 && addr <= 0x3FFF) return ppu->readRegister(addr);
     if (addr == 0x4015 && apu) return apu->readStatus();
     if (addr == 0x4016) return controller.read();
-    if (addr >= 0x8000 && mapper) return mapper->cpuRead(addr);
+    if (addr >= 0x4018 && mapper) return mapper->cpuRead(addr);
     return 0x00;
 }
 
@@ -105,5 +108,31 @@ inline void CPU::write(uint16_t addr, uint8_t val) {
     } else if (addr == 0x4016) {
         if (val & 1) controller.latch();
     } else if (addr >= 0x4000 && addr <= 0x4017 && apu) apu->write(addr, val);
-    else if (addr >= 0x8000 && mapper) mapper->cpuWrite(addr, val, totalCycles);
+    else if (addr >= 0x4018 && mapper) {
+        if (addr == 0x6000) {
+            if (val == 0x00) {
+                NESO_LOGD("🧪 TEST PASS! (Writing 0x00 to $6000)");
+                // Try to read result string from $6004 if it looks like a test ROM
+                char msg[256];
+                for(int i=0; i<255; i++) {
+                    msg[i] = (char)mapper->cpuRead(0x6004 + i);
+                    if (msg[i] == 0) break;
+                    if (i == 254) msg[255] = 0;
+                }
+                NESO_LOGD("🧪 TEST MSG: %s", msg);
+            }
+            else if (val >= 0x80) NESO_LOGD("🧪 TEST RUNNING... (State: 0x%02X)", val);
+            else {
+                NESO_LOGD("🧪 TEST FAILED: 0x%02X", val);
+                char msg[256];
+                for(int i=0; i<255; i++) {
+                    msg[i] = (char)mapper->cpuRead(0x6004 + i);
+                    if (msg[i] == 0) break;
+                    if (i == 254) msg[255] = 0;
+                }
+                NESO_LOGD("🧪 FAIL MSG: %s", msg);
+            }
+        }
+        mapper->cpuWrite(addr, val, totalCycles);
+    }
 }

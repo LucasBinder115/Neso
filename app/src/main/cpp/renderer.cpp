@@ -23,9 +23,6 @@ void renderScreen(uint32_t* pixelBuffer, PPU& ppu) {
         int fineY = (ppu.vramAddr >> 12) & 0x07;
         int nametable = (ppu.vramAddr >> 10) & 0x03;
         
-        int scrollX = coarseX * 8 + ppu.fineX;
-        int scrollY = coarseY * 8 + fineY;
-        
         int fineXScroll = ppu.fineX;
         int fineYScroll = fineY;
         int startTileX = coarseX;

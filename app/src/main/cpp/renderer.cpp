@@ -111,9 +111,9 @@ void renderScreen(uint32_t* pixelBuffer, PPU& ppu) {
                                 bgOpaque = (bgPixel != bgColor);
                             }
                             
-                            // Sprite 0 Hit detection
+                            // Sprite 0 Hit detection is now handled cycle-accurately in PPU::renderPixel
                             if (isSprite0) {
-                                ppu.checkSprite0Hit(outX, outY, bgOpaque, true);
+                                // Logic integrated into PPU::renderPixel
                             }
                             
                             if (!bgOpaque || !priority) {

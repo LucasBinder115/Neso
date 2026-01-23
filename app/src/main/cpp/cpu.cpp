@@ -8,31 +8,7 @@
 #define LOG_TAG "NesoCore"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 
-uint8_t CPU::read(uint16_t addr) {
-    if (addr <= 0x1FFF) return ram[addr & 0x7FF];
-    if (addr >= 0x2000 && addr <= 0x3FFF) return ppu->readRegister(addr);
-    if (addr == 0x4016) return controller.read();
-    if (addr >= 0x8000 && mapper) return mapper->cpuRead(addr);
-    return 0x00;
-}
-
-void CPU::write(uint16_t addr, uint8_t val) {
-    if (addr <= 0x1FFF) ram[addr & 0x7FF] = val;
-    else if (addr >= 0x2000 && addr <= 0x3FFF) ppu->writeRegister(addr, val);
- else if (addr == 0x4014) {
-        // OAM DMA: Copy 256 bytes to OAM
-        uint16_t base = (uint16_t)val << 8;
-        for (int i = 0; i < 256; i++) {
-            ((uint8_t*)ppu->sprites)[i] = read(base + i);
-        }
-        // DMA takes 513 cycles (+1 if on odd cycle)
-        // For simplicity, always use 513 (close enough)
-        cyclesToStall = 513;
-    } else if (addr == 0x4016) {
-        if (val & 1) controller.latch();
-    } else if (addr >= 0x4000 && addr <= 0x4017 && apu) apu->write(addr, val);
-    else if (addr >= 0x8000 && mapper) mapper->cpuWrite(addr, val, totalCycles);
-}
+// read, write, and setZN are now defined as inline in cpu.h
 
 void CPU::reset() {
     a = x = y = 0;
@@ -44,9 +20,7 @@ void CPU::reset() {
     LOGD("CPU RESET! PC: 0x%04X", pc);
 }
 
-void CPU::setZN(uint8_t val) {
-    status = (status & ~0x82) | (val == 0 ? 0x02 : 0) | (val & 0x80);
-}
+// setZN is now inline in cpu.h
 
 int CPU::step() {
     if (cyclesToStall > 0) { cyclesToStall--; return 1; }
@@ -301,6 +275,18 @@ int CPU::step() {
     if (apu) apu->step(cycles);
     totalCycles += cycles;
     return cycles;
+}
+
+void CPU::triggerIRQ() {
+    if (!(status & 0x04)) {
+        push(pc >> 8);
+        push(pc & 0xFF);
+        // Push status with Bit 5 set and B-flag clear
+        push((status | 0x20) & ~0x10);
+        status |= 0x04; // Set Interrupt Disable
+        pc = read16(0xFFFE);
+        cyclesToStall = 7;
+    }
 }
 
 void CPU::triggerNMI() {

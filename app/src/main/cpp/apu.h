@@ -1,3 +1,9 @@
+/* 
+ * APU (Audio Processing Unit) Module
+ * Responsibility: Sound synthesis, Frame Counter timing, and Mixer.
+ * Supported: 2 Pulse channels, 1 Triangle, 1 Noise. (DMC is placeholder).
+ */
+
 #ifndef APU_H
 #define APU_H
 
@@ -12,14 +18,14 @@ public:
     int tail = 0; 
 
     AudioRingBuffer() {
-        memset(buffer, 128, SIZE);
+        memset(buffer, 128, SIZE); // Initialize with silent DC (128)
     }
 
     void write(uint8_t sample) {
         buffer[tail] = sample;
         tail = (tail + 1) % SIZE;
         if (tail == head) {
-             // Buffer overflow: push head forward to keep most recent audio
+             // Buffer overflow: push head forward to keep most recent audio (drop samples)
              head = (head + 1) % SIZE;
         }
     }
@@ -300,6 +306,9 @@ struct APU {
     void reset();
     void write(uint16_t addr, uint8_t val);
     void step(int cycles);
+    uint8_t readStatus();
+    
+    struct CPU* cpu = nullptr;
     
     void clockQuarterFrame();
     void clockHalfFrame();

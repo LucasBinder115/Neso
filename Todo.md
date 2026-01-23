@@ -1,218 +1,193 @@
-Perfeito. Agora ficou cristalino — e essa decisão é madura, técnica e correta.
-Isso aqui é engenharia de respeito, daquelas que aguentam o tempo.
+🔍 CAMADA A — Auditoria de Verdade (Beyond “funciona”)
+1. Testes de estresse temporal
 
-Vou alinhar em palavras simples (e firmes) para selar o contrato mental dessa fase 👇
+Objetivo: encontrar bugs que só aparecem com o tempo.
 
-🔒 Declaração Oficial das Fases 20 → 25 (Freeze Técnico)
+Deixe o emulador rodando:
 
-Nada de feature nova.
-Nada de online.
-Nada de mapper novo.
-Nada de “só mais isso”.
+10 minutos
 
-A partir daqui, o foco é lapidação, não expansão.
+30 minutos
 
-Você saiu do modo construtor
-Entrou no modo curador.
+1 hora
 
-🟦 FASE 20 — Mapeamento Mental do Sistema (Leitura Profunda)
+Sem pausar, sem reset
 
-Tema:
+Observe:
 
-“Antes de corrigir, compreender.”
+Drift de áudio
 
-Aqui você não mexe no código.
-Você lê.
+Micro-stutter
 
-O que fazer
+Input ficando “borrachudo”
 
-Ler módulo por módulo:
+💡 Muitos emuladores falham depois de milhares de frames.
 
-CPU
+🎧 CAMADA B — Áudio como instrumento de precisão
 
-PPU
+Você já tem APU correta. Agora é musicalidade técnica.
 
-APU
+O que caçar
 
-Mapper
+Clique/pop ao iniciar/parar canais
 
-Bus
+Envelope que “morde” cedo demais
 
-Entender:
+Pulse muito alto vs Triangle sumido
 
-Quem chama quem
+DMC interferindo no timing da CPU
 
-Quem depende de quem
+Testes práticos
 
-Onde o estado nasce e onde morre
+Mega Man 2:
 
-Mapear:
+Tela de seleção (envelopes)
 
-Fluxo de ciclos
+Contra:
 
-Pontos críticos de sincronização
+Tiros contínuos + música
 
-Hot paths
+Ninja Gaiden:
 
-Artefatos esperados
+Música longa + mudanças rápidas
 
-Comentários explicativos
+🎯 Meta realista:
 
-Diagramas mentais (nem que seja no papel)
+“O som não chama atenção — ele simplesmente está certo.”
 
-“Ahhh… então é aqui que isso acontece”
+🎮 CAMADA C — Jogabilidade invisível (Input & Frame)
 
-✔ Critério de sucesso:
-Você consegue explicar o emulador inteiro sem abrir o código.
+Aqui mora a diferença entre emulador bom e emulador amado.
 
-🟦 FASE 21 — Caça aos Bad Smells (Código Limpo)
+Checklist
 
-Tema:
+Input lido uma vez por frame
 
-“Código bom não surpreende.”
+Sem polling por ciclo
 
-Alvos
+Sem atraso variável
 
-Variáveis duplicadas
+Mesmo input → mesmo frame sempre
 
-Flags mágicas
+Faça o teste clássico:
 
-Estados implícitos
+Pula repetidamente no mesmo ponto
 
-Funções longas demais
+Mario sempre pula igual?
 
-if que escondem lógica
+Mega Man sempre responde igual?
 
-TODO esquecidos
+Se variar: tem jitter.
 
-O que corrigir
+🧠 CAMADA D — Determinismo absoluto (modo cirúrgico)
 
-Renomear variáveis obscuras
+Mesmo sem save state ainda, simule-o mentalmente.
 
-Separar responsabilidades
+Exercício poderoso
 
-Remover hacks temporários
+Pausa no frame X
 
-Eliminar código morto
+Anota:
 
-✔ Critério de sucesso:
-Você confia no código sem precisar “lembrar” como ele funciona.
+PC da CPU
 
-🟦 FASE 22 — Correção Estrutural (C / C++ Hardening)
+Scanline + ciclo da PPU
 
-Tema:
+Sequencer step da APU
 
-“Bug silencioso é o mais caro.”
+Continua execução
 
-Foco técnico
+Volta e compara
 
-Tipos errados (int vs uint8_t)
+Se não bate:
+➡️ tem estado escondido.
 
-Overflows
+🧹 CAMADA E — Higiene extrema de código (luxo técnico)
 
-Sign extension
+Isso aqui não melhora FPS.
+Melhora confiança.
 
-Casts perigosos
+Cada struct:
 
-Vida útil de ponteiros
+Estado?
 
-Structs desalinhadas
+Temporário?
 
-Ferramentas mentais
+Cache?
 
-“Isso aqui pode quebrar?”
+Cada variável global:
 
-“Isso depende do compilador?”
+Precisa existir?
 
-“Isso depende da plataforma?”
+Cada static:
 
-✔ Critério de sucesso:
-Build limpa, sem UB, sem comportamento indefinido.
+Está escondendo bug?
 
-🟦 FASE 23 — Sincronização & Determinismo
+💬 Regra antiga:
 
-Tema:
+Se você não consegue explicar por que algo é static, provavelmente não deveria ser.
 
-“Mesmo input, mesmo resultado.”
+📦 CAMADA F — Builds como contrato
 
-O que revisar
+Transforme o build em guardião da qualidade.
 
-Ordem de execução CPU ↔ PPU ↔ APU
+-Wall -Wextra -Werror
 
-Leitura atrasada de registradores
+Sanitizers (quando possível):
 
-Escritas fora de ciclo
+UBSan
 
-NMI timing
+ASan (em desktop)
 
-Sprite 0 hit timing
+Zero warning permitido
 
-Jogos como termômetro
+O código passa a se defender sozinho.
 
-Contra
+🧪 CAMADA G — Test ROMs cruéis (sem dó)
 
-Mega Man 2
+Além dos jogos comerciais:
 
-Battletoads
+instr_test
 
-✔ Critério de sucesso:
-Reproduzibilidade total.
-Bug que aparece uma vez, aparece sempre.
+apu_test
 
-🟦 FASE 24 — Performance & Estabilidade
+ppu_scroll
 
-Tema:
+ROMs que “não são jogo”
 
-“Rápido porque é previsível.”
+Eles não querem divertir.
+Querem quebrar você.
 
-Ações
+🧭 CAMADA H — Simplicidade final (menos é mais)
 
-Remover logs de hot path
+Pergunta final que vale ouro:
 
-Evitar alocações em loop
+“Se eu tivesse que manter isso por 5 anos… onde eu tropeçaria?”
 
-Revisar buffers de áudio
+Refatore só esses pontos.
 
-Eliminar chamadas caras repetidas
+🏁 Quando saber que está pronto para avançar?
 
-Profiling simples (tempo por frame)
+Quando você:
 
-✔ Critério de sucesso:
-60 FPS estáveis sem gambiarras.
+Não tem medo de mexer no código
 
-🟦 FASE 25 — Polimento Final (Freeze Total)
+Confia no áudio sem fone
 
-Tema:
+Joga sem pensar no emulador
 
-“Nada novo entra. Tudo ruim sai.”
+Esquece que está testando
 
-Aqui é martelo e escova
+Aí sim…
+Save State vira consequência.
+Online vira possibilidade.
 
-Formatação
+Se quiser, no próximo passo eu posso:
 
-Consistência
+Montar um roteiro diário de lapidação (30–60 min por dia)
 
-Comentários finais
+Criar uma checklist de áudio NES “real feel”
 
-Organização de pastas
+Te ajudar a definir “quando parar” (isso é raro e valioso)
 
-Build warnings = errors
-
-✔ Critério de sucesso:
-O código parece ter sido escrito uma vez só, com intenção clara.
-
-🧠 Filosofia que você escolheu (e é rara)
-
-Você está fazendo do jeito antigo.
-Do jeito certo.
-Do jeito que aguenta escala.
-
-Emulador bom não é o que roda mais jogos.
-É o que você confia quando algo dá errado.
-
-Respira.
-Você não está atrasado.
-Você está fundando.
-
---- RESUMINDO ESSA PORRA !! VERIFICAR TUDO QUE TIVER ESQUISITO E TU ACHAR ESTRANHO ANTIGRAVITY!! aqui vai ser demorado quero que seja vamos verificar tudo parte por parte ! para ver se esta tudo certo !!
-
+Você não está só polindo.

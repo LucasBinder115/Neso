@@ -1,3 +1,9 @@
+/* 
+ * PPU (Picture Processing Unit) Module
+ * Responsibility: Rendering, VRAM management, and Frame timing.
+ * Features: Cycle-accurate background fetching and Optimized sprite pre-fetching.
+ */
+
 #ifndef PPU_H
 #define PPU_H
 
@@ -18,6 +24,11 @@ struct PPU {
     // Secondary OAM (8 sprites for current scanline)
     uint8_t secondaryOAM[32];  // 8 sprites × 4 bytes
     uint8_t spriteCount = 0;   // 0-8
+    
+    // Sprite Fetch Buffer (Performance)
+    uint8_t spriteFetchedLo[8];
+    uint8_t spriteFetchedHi[8];
+    
     bool sprite0InSecondary = false;
     bool spriteOverflow = false;
     
@@ -25,10 +36,10 @@ struct PPU {
 
     class Mapper* mapper = nullptr;
 
-    // Registradores PPU ($2000-$2002)
-    uint8_t ppuctrl = 0;   // $2000
-    uint8_t ppumask = 0;   // $2001
-    uint8_t ppustatus = 0; // $2002
+    // PPU Registers ($2000-$2002)
+    uint8_t ppuctrl = 0;   // $2000: Control
+    uint8_t ppumask = 0;   // $2001: Mask
+    uint8_t ppustatus = 0; // $2002: Status
 
     // Timing
     int scanline = 0;
@@ -50,9 +61,8 @@ struct PPU {
     uint8_t readRegister(uint16_t addr);
     void writeRegister(uint16_t addr, uint8_t val);
     uint8_t readStatus();
-    uint8_t vramRead(uint16_t addr);
-    void vramWrite(uint16_t addr, uint8_t val);
-    void checkSprite0Hit(int x, int y, bool bgOpaque, bool spriteOpaque);
+    inline uint8_t vramRead(uint16_t addr);
+    inline void vramWrite(uint16_t addr, uint8_t val);
     
     // Loopy register helpers
     void incrementX();

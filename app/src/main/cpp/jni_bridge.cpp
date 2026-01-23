@@ -1,3 +1,9 @@
+/*
+ * Neso Emulator JNI Bridge
+ * Responsibility: Interface between Android Activity and C++ Core.
+ * Manages the main execution loop and audio/video data transfer.
+ */
+
 #include <jni.h>
 #include "cpu.h"
 #include "ppu.h"
@@ -28,6 +34,7 @@ Java_com_neso_core_MainActivity_createCpu(JNIEnv* env, jobject thiz) {
     cpuGlobal->reset();
     ppuGlobal.reset();
     ppuGlobal.pixelBuffer = screenBuffer;
+    apuGlobal.cpu = cpuGlobal;
     apuGlobal.reset();
     return (jlong)cpuGlobal;
 }
@@ -78,15 +85,9 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
     Java_com_neso_core_MainActivity_stepCpu(JNIEnv* env, jobject thiz, jlong ptr) {
         if (!cpuGlobal || !cpuGlobal->mapper) return;
         
-        // --- Heartbeat Telemetry (Once per frame) ---
-        // Log CPU state at the start of the frame execution block
-        // This gives us a 60Hz sample of where the CPU is "hanging out".
-        // Using static counter to log every 60 frames (1 sec) to be even lighter? 
-        // User asked for "Heartbeat", 60Hz is fine for debugging "stuck" state.
-        
         // --- Core Execution Loop ---
         int cyclesThisFrame = 0;
-        while (cyclesThisFrame < 29780) { // Authentic NTSC (approx)
+        while (cyclesThisFrame < 29780) { // Authentic NTSC cycles per frame
             int cycles = cpuGlobal->step();
             ppuGlobal.step(cycles, cpuGlobal);
             apuGlobal.step(cycles);
@@ -94,6 +95,8 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
             if (ppuGlobal.nmiOccurred) {
                 cpuGlobal->triggerNMI();
                 ppuGlobal.nmiOccurred = false;
+            } else if (cpuGlobal->irqPending) {
+                cpuGlobal->triggerIRQ();
             }
             cyclesThisFrame += cycles;
         }
@@ -111,9 +114,9 @@ Java_com_neso_core_MainActivity_loadRom(JNIEnv* env, jobject thiz, jbyteArray da
             lastPC = cpuGlobal->pc;
         }
 
-        // Log Heartbeat every 120 frames (~2 seconds)
+        // Log Heartbeat every 300 frames (~5 seconds)
         // Helps identify "Hangs" during wide compatibility testing
-        if (frameCounter % 120 == 0) {
+        if (frameCounter % 300 == 0) {
             LOGD("💓 Heartbeat: PC=%04X Sl=%d Cyc=%d Stagnant=%d", 
                  cpuGlobal->pc, ppuGlobal.scanline, ppuGlobal.cycle, stagnantFrames);
             
@@ -144,9 +147,9 @@ Java_com_neso_core_MainActivity_getAudioSamples(JNIEnv* env, jobject thiz, jbyte
     static int totalRead = 0;
     static uint32_t lastGenCount = 0;
     totalRead += read;
-    if (++counter % 120 == 0) {
+    if (++counter % 300 == 0) {
         uint32_t genDelta = apuGlobal.totalSamplesGenerated - lastGenCount;
-        LOGD("Audio Buffer: %d%% | Gen: %u | Cons: %d (per 120 calls)", 
+        LOGD("Audio Buffer: %d%% | Gen: %u | Cons: %d (per 300 calls)", 
              apuGlobal.ringBuffer.getLevelPct(), genDelta, totalRead);
         lastGenCount = apuGlobal.totalSamplesGenerated;
         totalRead = 0;

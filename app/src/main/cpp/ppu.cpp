@@ -41,14 +41,14 @@ void PPU::reset() {
 uint8_t PPU::readStatus() {
     uint8_t res = ppustatus;
     
-    // Race Condition: Reading $2002 at the exact start of VBlank (Scanline 241, Cycle 1)
-    // If we are at SL 241, Cycle 1, the VBlank flag should NOT be returned as set,
-    // and NMI should be suppressed.
+    // NMI Suppression: If VBlank is read while it's being set, 
+    // it's cleared in the result and NMI is suppressed for this frame.
     if (scanline == 241 && cycle == 1) {
-        res &= ~0x80; // Clear VBlank in result
+        res &= ~0x80;
+        nmiOccurred = false; 
     }
     
-    ppustatus &= ~0x80; // Clear VBlank flag on read
+    ppustatus &= ~0x80;
     writeToggle = false; 
     return res;
 }
@@ -200,8 +200,9 @@ void PPU::processSprites() {
         if (cycle % 2 == 0) secondaryOAM[idx] = 0xFF;
     }
     
-    // Cycle 65: Instant Sprite Evaluation (Cheat for stability/perf)
-    if (cycle == 65 && scanline < 240) {
+    // Cycle 257: Instant Sprite Evaluation & Pre-fetch for NEXT scanline
+    if (cycle == 257 && scanline < 239) { // We evaluate for scanline + 1
+        int nextScanline = scanline + 1;
         spriteCount = 0;
         sprite0InSecondary = false;
         
@@ -210,24 +211,41 @@ void PPU::processSprites() {
 
         while (n < 64 && spriteCount < 8) {
             int sy = sprites[n].y;
-            int diff = scanline - sy;
+            int diff = nextScanline - sy;
             if (diff >= 0 && diff < spriteHeight) {
                 int secIdx = spriteCount * 4;
                 secondaryOAM[secIdx + 0] = sprites[n].y;
                 secondaryOAM[secIdx + 1] = sprites[n].tile_index;
                 secondaryOAM[secIdx + 2] = sprites[n].attributes;
                 secondaryOAM[secIdx + 3] = sprites[n].x;
+                
+                // Pre-fetch Pattern Data
+                int row = nextScanline - sy;
+                uint8_t sa = sprites[n].attributes;
+                uint8_t st = sprites[n].tile_index;
+                if (sa & 0x80) row = ((ppuctrl & 0x20) ? 15 : 7) - row;
+                
+                uint16_t patternBase = (ppuctrl & 0x08) ? 0x1000 : 0x0000;
+                if (ppuctrl & 0x20) {
+                    patternBase = (st & 1) ? 0x1000 : 0x0000;
+                    st &= 0xFE;
+                    if (row >= 8) { st++; row -= 8; }
+                }
+                
+                spriteFetchedLo[spriteCount] = vramRead(patternBase + (st * 16) + row);
+                spriteFetchedHi[spriteCount] = vramRead(patternBase + (st * 16) + row + 8);
+
                 if (n == 0) sprite0InSecondary = true;
                 spriteCount++;
             }
             n++;
         }
 
-        // Sprite Overflow Hardware Bug
+        // Sprite Overflow
         int m = 0;
         while (n < 64) {
             int y = ((uint8_t*)sprites)[n * 4 + m];
-            int diff = scanline - y;
+            int diff = nextScanline - y;
             if (diff >= 0 && diff < spriteHeight) {
                 ppustatus |= 0x20;
                 break;
@@ -273,17 +291,8 @@ void PPU::vramWrite(uint16_t addr, uint8_t val) {
     }
 }
 
-void PPU::checkSprite0Hit(int x, int y, bool bgOpaque, bool spriteOpaque) {
-    if (!sprite0InSecondary) return;
-    if (x >= 255) return;
-    if (scanline >= 240) return;
-    if (!(ppumask & 0x18)) return;
-    if (ppustatus & 0x40) return;
-    
-    if (bgOpaque && spriteOpaque) {
-        ppustatus |= 0x40;
-    }
-}
+// Obsolete - functionality integrated into renderPixel for cycle-accuracy
+// checkSprite0Hit was removed as its logic is now integrated into renderPixel
 
 // Loopy register helpers
 void PPU::incrementX() {
@@ -381,25 +390,12 @@ void PPU::renderPixel() {
             // Iterate front-to-back because we want the first sprite that matches
             for (int i = 0; i < spriteCount; i++) {
                 int idx = i * 4;
-                int sy = secondaryOAM[idx];
-                int st = secondaryOAM[idx + 1];
                 int sa = secondaryOAM[idx + 2];
                 int sx = secondaryOAM[idx + 3];
                 
                 if (x >= sx && x < sx + 8) {
-                    // Determine sprite row
-                    int row = scanline - sy;
-                    if (sa & 0x80) row = ((ppuctrl & 0x20) ? 15 : 7) - row;
-                    
-                    uint16_t patternBase = (ppuctrl & 0x08) ? 0x1000 : 0x0000;
-                    if (ppuctrl & 0x20) {
-                        patternBase = (st & 1) ? 0x1000 : 0x0000;
-                        st &= 0xFE;
-                        if (row >= 8) { st++; row -= 8; }
-                    }
-                    
-                    uint8_t p0 = vramRead(patternBase + (st * 16) + row);
-                    uint8_t p1 = vramRead(patternBase + (st * 16) + row + 8);
+                    uint8_t p0 = spriteFetchedLo[i];
+                    uint8_t p1 = spriteFetchedHi[i];
                     
                     int col = x - sx;
                     if (sa & 0x40) col = 7 - col;

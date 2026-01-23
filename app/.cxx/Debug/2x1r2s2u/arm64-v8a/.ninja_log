@@ -9,3 +9,16 @@
 62	1360	1769050266185711461	CMakeFiles/neso.dir/apu.cpp.o	99a53dd85a6787fc
 62	4586	1769052259461600170	CMakeFiles/neso.dir/jni_bridge.cpp.o	816adc396d513abc
 4587	7226	1769052262113701166	/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/arm64-v8a/libneso.so	3850176bf9d3c2bf
+93	8778	1769129633220730704	CMakeFiles/neso.dir/mapper.cpp.o	cefa1fed513af0d9
+93	8833	1769129633268732541	CMakeFiles/neso.dir/rom.cpp.o	315098c0789b0a73
+87	8837	1769129633288733307	CMakeFiles/neso.dir/cpu.cpp.o	c14417b66d324f4e
+86	2324	1769129773606196739	CMakeFiles/neso.dir/apu.cpp.o	99a53dd85a6787fc
+95	9052	1769129780286457882	CMakeFiles/neso.dir/jni_bridge.cpp.o	816adc396d513abc
+89	9457	1769129780714474614	CMakeFiles/neso.dir/renderer.cpp.o	fe500163d430a454
+74	9697	1769129780966484466	CMakeFiles/neso.dir/ppu.cpp.o	343def0f9f72ba53
+9697	13980	1769129785246651785	/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/arm64-v8a/libneso.so	3850176bf9d3c2bf
+38	9167	1769129925200132600	CMakeFiles/neso.dir/apu.cpp.o	99a53dd85a6787fc
+38	9768	1769129925808156352	CMakeFiles/neso.dir/ppu.cpp.o	343def0f9f72ba53
+37	9920	1769129925956162133	CMakeFiles/neso.dir/cpu.cpp.o	c14417b66d324f4e
+41	9957	1769129926028164946	CMakeFiles/neso.dir/jni_bridge.cpp.o	816adc396d513abc
+9966	12481	1769129928556263701	/home/Lucas/Neso/app/build/intermediates/cxx/Debug/2x1r2s2u/obj/arm64-v8a/libneso.so	3850176bf9d3c2bf

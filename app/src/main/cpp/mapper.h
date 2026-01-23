@@ -1,3 +1,9 @@
+/* 
+ * Mapper Module (Base & Implementation)
+ * Responsibility: Handle cartridge banking, PRG/CHR ROM mapping, and Nametable mirroring.
+ * Supported Mappers: 0 (NROM), 1 (MMC1), 2 (UxROM), 3 (CNROM), 7 (AxROM).
+ */
+
 #ifndef MAPPER_H
 #define MAPPER_H
 
@@ -40,7 +46,7 @@ public:
 
 protected:
     Rom* rom;
-    uint8_t ppuVram[2048] = {0}; // 2KB para Nametables
+    uint8_t ppuVram[2048] = {0}; // 2KB internal Nametable memory
 };
 
 class Mapper0 : public Mapper {

@@ -1,4 +1,6 @@
 #include "apu.h"
+#include "cpu.h"
+#include <cmath>
 
 const uint8_t SquareChannel::DUTIES[4][8] = {
     {0, 1, 0, 0, 0, 0, 0, 0}, // 12.5%
@@ -34,10 +36,10 @@ void APU::reset() {
     totalSamplesGenerated = 0;
     filterAccumulator = 128.0f;
     
-    frameCounterCycles = 0;
     frameStep = 0;
     frameCounterMode = false;
     frameIRQDisable = false;
+    if (cpu) cpu->irqPending = false;
 }
 
 void APU::write(uint16_t addr, uint8_t val) {
@@ -177,6 +179,7 @@ void APU::step(int cycles) {
                 case 14915:
                     clockQuarterFrame();
                     clockHalfFrame();
+                    if (!frameIRQDisable && cpu) cpu->irqPending = true;
                     frameCounterCycles = 0;
                     break;
             }
@@ -268,4 +271,17 @@ void APU::clockHalfFrame() {
     square2.clockSweep(false);
     triangle.clockLength();
     noise.clockLength();
+}
+
+uint8_t APU::readStatus() {
+    uint8_t res = 0;
+    if (square1.lengthCounter > 0) res |= 0x01;
+    if (square2.lengthCounter > 0) res |= 0x02;
+    if (triangle.lengthCounter > 0) res |= 0x04;
+    if (noise.lengthCounter > 0) res |= 0x08;
+    
+    if (cpu && cpu->irqPending) res |= 0x40;
+    if (cpu) cpu->irqPending = false;
+    
+    return res;
 }
